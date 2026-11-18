@@ -3,7 +3,7 @@ townId: go-microservice-strategy
 title: 分布式服务治理：负载均衡、熔断、限流、服务降级
 description: 对微服务服务治理的详解.
 category: Golang
-series: "Go 微服务"
+series: "Go 微服务基础"
 seriesIndex: 2
 tags:
   - Golang

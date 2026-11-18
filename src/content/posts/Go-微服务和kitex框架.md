@@ -3,7 +3,7 @@ townId: go-kitex
 title: 分布式基础：微服务理论（gRPC）和kitex框架
 description: 对微服务理论基础的讲解和kitex框架的介绍与快速搭建.
 category: Golang
-series: "Go 微服务"
+series: "Go 微服务基础"
 seriesIndex: 0
 tags:
   - Golang

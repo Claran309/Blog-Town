@@ -3,8 +3,8 @@ townId: linux
 title: 初入Linux：linux基础与WSL2
 description: linux操作系统的基础学习.
 category: 工具
-series: "Go 工程化与工具"
-seriesIndex: 3
+series: "开发环境与工具"
+seriesIndex: 1
 tags:
   - 工具
   - 底层

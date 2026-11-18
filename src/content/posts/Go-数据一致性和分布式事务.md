@@ -3,8 +3,8 @@ townId: go-DataConsistency
 title: 数据一致性：分布式事务的实现
 description: 如何在分布式架构中确保数据一致性与分布式事务使用的讲解.
 category: Golang
-series: "Go 微服务"
-seriesIndex: 3
+series: "Go 分布式实践"
+seriesIndex: 0
 tags:
   - Golang
   - 后端

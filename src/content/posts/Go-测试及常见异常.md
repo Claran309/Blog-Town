@@ -3,8 +3,8 @@ townId: go-test
 title: 项目实践中的测试与常见异常
 description: Go的测试代码和常见异常学习.
 category: Golang
-series: "Go 语言基础"
-seriesIndex: 4
+series: "Go 工程实践"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

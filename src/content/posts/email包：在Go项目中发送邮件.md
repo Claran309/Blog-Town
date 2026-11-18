@@ -3,8 +3,8 @@ townId: go-email
 title: email包:在Go项目中发送邮件
 description: Go中email包的使用.
 category: Golang
-series: "Go 工程化与工具"
-seriesIndex: 4
+series: "开发环境与工具"
+seriesIndex: 2
 tags:
   - Golang
   - 后端

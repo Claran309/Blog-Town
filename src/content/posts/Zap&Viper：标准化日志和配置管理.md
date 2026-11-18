@@ -3,7 +3,7 @@ townId: go-viper-zap
 title: Zap&Viper：标准化日志和配置管理
 description: 第三方库Zap和Viper的学习.
 category: Golang
-series: "Go 工程化与工具"
+series: "Go 日志与可观测"
 seriesIndex: 0
 tags:
   - Golang

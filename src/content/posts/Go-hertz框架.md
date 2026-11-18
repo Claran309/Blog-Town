@@ -3,7 +3,7 @@ townId: go-hertz
 title: 走进hertz框架
 description: 对hertz框架的简单介绍.
 category: Golang
-series: "Go Web 开发"
+series: "Go Web 入门"
 seriesIndex: 1
 tags:
   - Golang

@@ -3,7 +3,7 @@ townId: diary5
 title: 随笔.5：为摆烂找点借口
 description: 大一期中绝赞焦虑中...
 category: 随笔
-series: "大学生活随笔"
+series: "大学生活随笔 I"
 seriesIndex: 4
 tags:
   - 随笔

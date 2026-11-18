@@ -3,8 +3,8 @@ townId: diary7
 title: 随笔.7：期末月的自我欺骗
 description: 颓废了一段时间.
 category: 随笔
-series: "大学生活随笔"
-seriesIndex: 6
+series: "大学生活随笔 II"
+seriesIndex: 1
 tags:
   - 随笔
   - 杂项

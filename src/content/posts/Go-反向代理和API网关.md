@@ -3,8 +3,8 @@ townId: go-APIgateway
 title: 请求闸口：反向代理和API网关
 description: 对反向代理和API网关的介绍.
 category: Golang
-series: "Go Web 开发"
-seriesIndex: 3
+series: "Go Web 进阶"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

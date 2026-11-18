@@ -3,8 +3,8 @@ townId: go-MQ
 title: 消息队列：从理论到Kafka实践
 description: 消息队列概念解析和实践.
 category: Golang
-series: "Go 微服务"
-seriesIndex: 4
+series: "Go 分布式实践"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

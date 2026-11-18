@@ -3,7 +3,7 @@ townId: go-gin
 title: 初入Web编程：计网，http，JSON和Gin框架
 description: 开始正式步入Go-Web编程.
 category: Golang
-series: "Go Web 开发"
+series: "Go Web 入门"
 seriesIndex: 0
 tags:
   - Golang

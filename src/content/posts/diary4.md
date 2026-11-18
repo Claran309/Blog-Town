@@ -3,7 +3,7 @@ townId: diary4
 title: 随笔.4：第一个期中
 description: 来到大学的第一个期中.
 category: 随笔
-series: "大学生活随笔"
+series: "大学生活随笔 I"
 seriesIndex: 3
 tags:
   - 随笔

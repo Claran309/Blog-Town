@@ -3,8 +3,8 @@ townId: diary9
 title: 随笔.9：简单回顾，重整旗鼓
 description: 对最近两个月的回顾.
 category: 随笔
-series: "大学生活随笔"
-seriesIndex: 8
+series: "大学生活随笔 II"
+seriesIndex: 3
 tags:
   - 随笔
   - 杂项

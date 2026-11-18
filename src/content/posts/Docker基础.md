@@ -3,8 +3,8 @@ townId: docker
 title: Docker基础
 description: 初步讲解Docker,Dockerfile和Docker-compose.
 category: 工具
-series: "Go 工程化与工具"
-seriesIndex: 2
+series: "开发环境与工具"
+seriesIndex: 0
 tags:
   - 工具
   - 后端
