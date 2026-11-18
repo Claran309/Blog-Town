@@ -3,6 +3,8 @@ townId: diary1
 title: 随笔.1：初入大学和技术社团的接触
 description: 初入大学的感想.
 category: 随笔
+series: "大学生活随笔"
+seriesIndex: 0
 tags:
   - 随笔
   - 杂项

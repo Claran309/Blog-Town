@@ -3,6 +3,8 @@ townId: go-Newfunc
 title: Go-项目结构规范&面向接口与依赖注入思想
 description: Web后端设计中注入依赖架构的学习.
 category: Golang
+series: "Go 语言基础"
+seriesIndex: 5
 tags:
   - Golang
   - 后端

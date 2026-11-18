@@ -3,6 +3,8 @@ townId: java-class
 title: Java-面向对象与类
 description: Java中面向对象与类的学习.
 category: 其他语言
+series: "Java 入门"
+seriesIndex: 1
 tags:
   - 杂项
   - 其他语言

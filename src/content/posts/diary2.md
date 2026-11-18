@@ -3,6 +3,8 @@ townId: diary2
 title: 随笔.2：Be a Gopher.
 description: 对未来的规划.
 category: 随笔
+series: "大学生活随笔"
+seriesIndex: 1
 tags:
   - 随笔
   - 杂项

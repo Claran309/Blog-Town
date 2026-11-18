@@ -3,6 +3,8 @@ townId: diary8
 title: 随笔.8：努力地追赶与不绝的焦虑
 description: 分布式学习完结的总结与对未来的规划.
 category: 随笔
+series: "大学生活随笔"
+seriesIndex: 7
 tags:
   - 随笔
   - 杂项

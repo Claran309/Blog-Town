@@ -3,6 +3,8 @@ townId: go-error
 title: 项目中合理的错误处理与传递
 description: Go中email包的使用.
 category: Golang
+series: "Go 语言基础"
+seriesIndex: 3
 tags:
   - Golang
   - 后端

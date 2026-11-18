@@ -3,6 +3,8 @@ townId: java-basic
 title: Java-基础语法知识
 description: Java基础语法知识的学习.
 category: 其他语言
+series: "Java 入门"
+seriesIndex: 0
 tags:
   - 杂项
   - 其他语言

@@ -3,6 +3,8 @@ townId: go-goroutine-pool
 title: Go并发实践-手搓协程池
 description: 基于Go并发控制实现的协程池原理.
 category: Golang
+series: "Go 并发"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

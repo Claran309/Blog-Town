@@ -3,6 +3,8 @@ townId: go-DDD
 title: 充血架构：走进领域驱动设计（DDD架构）
 description: 领域驱动设计（DDD架构）从理论讲解到落地实践.
 category: Golang
+series: "Go 项目与架构"
+seriesIndex: 2
 tags:
   - Golang
   - 后端

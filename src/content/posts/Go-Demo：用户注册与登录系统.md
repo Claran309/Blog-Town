@@ -3,6 +3,8 @@ townId: go-user-demo
 title: Go-Demo：用户注册与登录系统
 description: 学习过程中写的一个用户相关的CRUD基础Demo.
 category: Golang
+series: "Go 项目与架构"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

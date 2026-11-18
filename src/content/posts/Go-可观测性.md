@@ -3,6 +3,8 @@ townId: go-observability
 title: 项目可视化：分布式系统中的可观测性
 description: 讲解OpenTelemetry、Prometheus、Jaeger和ELK的使用.
 category: Golang
+series: "Go 工程化与工具"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

@@ -3,6 +3,8 @@ townId: diary3
 title: 随笔.3：熟悉常态
 description: 开始学习Go了！
 category: 随笔
+series: "大学生活随笔"
+seriesIndex: 2
 tags:
   - 随笔
   - 杂项

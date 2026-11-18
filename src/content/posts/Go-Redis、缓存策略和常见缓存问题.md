@@ -3,6 +3,8 @@ townId: go-redis
 title: 走进缓存：Redis、缓存策略和常见缓存问题
 description: 学习Redis缓存基础和常用缓存策略.
 category: Golang
+series: "Go 数据与存储"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

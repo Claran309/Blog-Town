@@ -3,6 +3,8 @@ townId: go-sql
 title: 走进MySQL、gorm和其他关系型数据库
 description: 学习数据库SQL操作及Gorm包.
 category: Golang
+series: "Go 数据与存储"
+seriesIndex: 0
 tags:
   - Golang
   - 后端

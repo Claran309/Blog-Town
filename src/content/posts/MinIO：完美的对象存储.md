@@ -3,6 +3,8 @@ townId: go-minio
 title: MinIO：完美的对象存储
 description: minio及其在Go中的使用.
 category: Golang
+series: "Go 数据与存储"
+seriesIndex: 2
 tags:
   - Golang
   - 后端

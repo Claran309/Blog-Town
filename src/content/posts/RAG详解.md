@@ -3,6 +3,8 @@ townId: go-rag1
 title: RAG指南：从基础实现到进阶方案
 description: 我的RAG学习笔记.
 category: Agent
+series: "Agent 与 RAG"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

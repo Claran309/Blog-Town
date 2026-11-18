@@ -3,6 +3,8 @@ townId: go-Agent
 title: 从 LLM 到 Agent：Vibe Coding、Eino 实战与Agent构建
 description: 从AI扫盲到系统梳理Agent核心架构，讲解Eino框架与Go语言开发实战.
 category: Agent
+series: "Agent 与 RAG"
+seriesIndex: 0
 tags:
   - Golang
   - Agent

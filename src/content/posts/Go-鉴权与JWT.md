@@ -3,6 +3,8 @@ townId: go-jwt
 title: Web编程中如何实现鉴权与JWT的详解
 description: Go-Web中的JWT中间件和鉴权操作学习.
 category: Golang
+series: "Go Web 开发"
+seriesIndex: 2
 tags:
   - Golang
   - 后端

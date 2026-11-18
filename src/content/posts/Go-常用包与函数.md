@@ -3,6 +3,8 @@ townId: go-usually
 title: Go-常用包与函数
 description: Go-常用包的汇总.
 category: Golang
+series: "Go 语言基础"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

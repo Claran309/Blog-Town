@@ -3,6 +3,8 @@ townId: go-interface
 title: Go的“面向对象”-接口与相关思想
 description: Go中关于接口的使用和思想.
 category: Golang
+series: "Go 语言基础"
+seriesIndex: 2
 tags:
   - Golang
   - 后端

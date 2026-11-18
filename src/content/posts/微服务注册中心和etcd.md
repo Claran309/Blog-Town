@@ -3,6 +3,8 @@ townId: go-etcd
 title: 服务发现：从手搓注册中心到etcd与kitex的快速集成
 description: 注册中心etcd详解和kitex框架下的代码实现.
 category: Golang
+series: "Go 微服务"
+seriesIndex: 1
 tags:
   - Golang
   - 后端

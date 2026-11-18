@@ -3,6 +3,8 @@ townId: go-basic
 title: Go-基础语法知识
 description: Golang语言的基础语法学习.
 category: Golang
+series: "Go 语言基础"
+seriesIndex: 0
 tags:
   - Golang
   - 后端

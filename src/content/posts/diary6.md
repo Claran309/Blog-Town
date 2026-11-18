@@ -3,6 +3,8 @@ townId: diary6
 title: 随笔.6：被同届小登们吓哭
 description: 迎来了第一个期末www.
 category: 随笔
+series: "大学生活随笔"
+seriesIndex: 5
 tags:
   - 随笔
   - 杂项

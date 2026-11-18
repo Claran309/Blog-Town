@@ -3,6 +3,8 @@ townId: go-goroutine
 title: Go并发基础-goroutine，channel & sync包
 description: Go的并发基础学习.
 category: Golang
+series: "Go 并发"
+seriesIndex: 0
 tags:
   - Golang
   - 后端

@@ -3,6 +3,8 @@ townId: go-AIM
 title: AIM项目总结梳理
 description: 对最近完成的AIM项目的技术回顾、分析与总结
 category: Golang
+series: "Agent 与 RAG"
+seriesIndex: 2
 tags:
   - Golang
   - Agent
