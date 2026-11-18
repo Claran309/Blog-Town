@@ -91,25 +91,28 @@ const canonical = new URL('/about/', siteConfig.siteUrl).href;
         <div class="about-grid">
           <section class="about-card" aria-labelledby="about-me-title">
             <h2 id="about-me-title">关于我</h2>
-            <p>我是 Claran，一名正在学习 Go、后端开发和 Agent 的学生。这个博客记录学习过程，也记录一些还没有答案的问题。</p>
-            <p>我喜欢把复杂的东西拆开理解，再重新拼回去。小镇里的每栋房子代表一篇笔记，楼层越多，说明我在一个主题上停留得越久。</p>
+            <p>我是 Claran，一名在学 Go 和后端开发的学生。</p>
+            <p>我真正喜欢的事情是记录：记录一切，无论是代码、感想，还是生活。写着写着，就把一段时间留了下来。</p>
+            <p>小镇里的每栋房子代表一篇笔记，楼层越多，说明我在一个主题上停留得越久。</p>
           </section>
           <section class="about-card about-landmark" aria-labelledby="about-town-title">
-            <span class="landmark-label">TOWN LANDMARK</span>
-            <h2 id="about-town-title">中心风车</h2>
-            <p>小镇中心的这座风车不占文章楼层，它是这座博客的公共地标，也是 About 页面的地图入口。</p>
-            <p>悬停侧边栏的简介卡，地图上会高亮它。</p>
+            <span class="landmark-label">THE TOWN</span>
+            <h2 id="about-town-title">这座小镇</h2>
+            <p>这座小镇就是博客的地图：一栋楼是一篇文章，楼层多少对应篇幅长短，街区对应分类和标签。</p>
+            <p>可以拖动、缩放，沿着路走，看看最近写下的东西；点开任意一栋楼，就能进入那篇笔记。</p>
+            <p>悬停侧边栏的简介卡，地图上会高亮中心地标。</p>
           </section>
         </div>
         <div class="about-grid">
           <section class="about-card" aria-labelledby="about-now-title">
             <h2 id="about-now-title">最近在做什么</h2>
-            <p>在补 Go 工程、分布式系统和计算机基础，也在尝试把 Agent 真正放进后端业务里，而不是只停留在演示。</p>
+            <p>在复习底层：操作系统、计算机网络、数据库，把以前跳过的部分一点点补回来。</p>
+            <p>同时在补八股、整理面试题，做开源项目，准备投简历找实习。</p>
             <p>小镇会继续增加新的建筑，但它们应该先是“可读的空间”，然后才是装饰。</p>
           </section>
           <section class="about-card" aria-labelledby="about-links-title">
             <h2 id="about-links-title">找到我</h2>
-            <p>如果你想聊聊后端、Agent、博客，或者只是路过打个招呼，可以从这里开始。</p>
+            <p>有想法、有问题、发现写错了，都可以从这里开始；也可以直接在下面的留言板留一句。</p>
             <div class="about-links">
               {siteConfig.profile.links.map((link) => <a href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
               <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>

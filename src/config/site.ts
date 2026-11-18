@@ -47,7 +47,7 @@ export const siteConfig: SiteConfig = {
   profile: {
     name: 'Claran',
     avatar: '/assets/profile/avatar.webp',
-    headline: '接受所有改变，继续心中祈愿',
+    headline: '即使愚蠢如我，明天也会到来',
     bio: '一个在写 Go、后端与 Agent 的学生。',
     links: [
       { id: 'github', label: 'GitHub', url: 'https://github.com/Claran309', logo: '/assets/links/github.svg' },

@@ -241,3 +241,20 @@
     grid-template-columns: 1fr;
   }
 }
+.about-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--blue) 12%, transparent), transparent 28rem),
+    var(--paper);
+  color: var(--ink);
+}
+
+/* global.css locks the shell to the viewport for the town app; the standalone
+   About document has to scroll normally instead. */
+body:has(.about-page) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+

@@ -80,6 +80,7 @@ function TownStage({ hoveredPost, hoverAnchor, hoveredFeature, featureAnchor, to
 const icon = (name: string) => {
   const paths: Record<string, string> = {
     home: 'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5M9 20v-5h6v5',
+    about: 'M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18ZM12 11v6M12 7.5h.01',
     archive: 'M4 5.5h16v3H4zM5.5 8.5V20h13V8.5M8 12h8M8 15.5h6',
     category: 'M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z',
     tag: 'M5 5h6l8 8-6 6-8-8V5zM8 8.5h.01',
@@ -491,7 +492,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
             <div className="brand-block"><div className="brand-mark brand-image"><SidebarImage src={siteConfig.logo} alt="" mobileOpen={mobileSidebarOpen} /></div><div><div className="brand-name">{siteConfig.title}</div><div className="brand-subtitle">{siteConfig.tagline}</div></div><button className="mobile-sidebar-close" type="button" aria-label="关闭侧边栏" onClick={() => setMobileSidebarOpen(false)}>{icon('close')}</button></div>
             <div className="sidebar-rule" />
             <nav className="desktop-sidebar-nav" aria-label="侧边栏入口">
-              <a className="nav-item" href="/about/">{icon('home')}<span>名片</span></a>
+              <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}>{icon('home')}<span>名片</span></a>
+              <a className="nav-item" href="/about/">{icon('about')}<span>关于</span></a>
               <button className={`nav-item ${sidebarPanel === 'list' ? 'is-active' : ''}`} onClick={() => { setSidebarPanel('list'); }}>{icon('archive')}<span>列表</span><span className="nav-count">{String(posts.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'categories' || sidebarPanel === 'category-posts' ? 'is-active' : ''}`} onClick={() => openExplore('categories')}>{icon('category')}<span>分类</span><span className="nav-count">{String(categories.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'tags' || sidebarPanel === 'tag-posts' ? 'is-active' : ''}`} onClick={() => openExplore('tags')}>{icon('tag')}<span>标签</span><span className="nav-count">{String(tags.length).padStart(2, '0')}</span></button>
@@ -504,7 +506,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
               </nav>
               <div className="sidebar-section-label">探索</div>
               <nav className="secondary-nav">
-                <a className="nav-item" href="/about/">{icon('home')}<span>名片</span></a>
+                <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}>{icon('home')}<span>名片</span></a>
+                <a className="nav-item" href="/about/">{icon('about')}<span>关于</span></a>
                 <button className={`nav-item ${sidebarPanel === 'categories' || sidebarPanel === 'category-posts' ? 'is-active' : ''}`} onClick={() => openExplore('categories')}>{icon('category')}<span>分类</span><span className="nav-count">{String(categories.length).padStart(2, '0')}</span></button>
                 <button className={`nav-item ${sidebarPanel === 'tags' || sidebarPanel === 'tag-posts' ? 'is-active' : ''}`} onClick={() => openExplore('tags')}>{icon('tag')}<span>标签</span><span className="nav-count">{String(tags.length).padStart(2, '0')}</span></button>
                 <button className={`nav-item ${sidebarPanel === 'friends' ? 'is-active' : ''}`} onClick={() => openExplore('friends')}>{icon('friends')}<span>友邻</span><span className="nav-count">{String(friendLinks.length).padStart(2, '0')}</span></button>

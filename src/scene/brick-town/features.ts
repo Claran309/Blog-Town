@@ -174,38 +174,41 @@ function addRotor(kit: BrickKit, id: string, lanternBaseY: number, coursesPerFlo
   kit.box(hub.x, hub.y, hub.z, 0.44, 0.44, 0.26, C.brown, rotorYaw, id);
   kit.box(hub.x + 0.07, hub.y, hub.z + 0.15, 0.22, 0.22, 0.12, C.yellow, rotorYaw, id);
 
-  const bladeLength = 3.55;
-  const bladeCenter = 1.95;
-  const panelLength = 3.0;
-  const panelCenter = 2.0;
+  // Pixel-stepped sail: three bands along the arm, the middle one kicked out
+  // sideways so the outline breaks into a hard stair instead of a curve.
+  const trailing = -0.30;
+  const border = 0.15;
+  const bands = [
+    { start: 0.52, end: 1.46, leading: 0.34 },
+    { start: 1.46, end: 2.56, leading: 0.78 },
+    { start: 2.56, end: 3.56, leading: 0.34 },
+  ];
+
   for (let quadrant = 0; quadrant < 4; quadrant++) {
     const roll = Math.PI / 4 + quadrant * Math.PI / 2;
     const sa = Math.sin(roll);
     const ca = Math.cos(roll);
+    const point = (distance: number, lateral: number) => ({
+      u: ca * distance - sa * lateral,
+      v: sa * distance + ca * lateral,
+    });
 
-    const frameU = ca * bladeCenter;
-    const frameV = sa * bladeCenter;
-    kit.rolledBox(rotorX(frameU, 0.04), hub.y + frameV, rotorZ(frameU, 0.04), bladeLength, 1.0, 0.1, roll, C.coral, rotorYaw, id);
+    for (const band of bands) {
+      const length = band.end - band.start;
+      const width = band.leading - trailing;
+      const center = point((band.start + band.end) / 2, (band.leading + trailing) / 2);
 
-    const panelU = ca * panelCenter;
-    const panelV = sa * panelCenter;
-    kit.rolledBox(rotorX(panelU, 0.085), hub.y + panelV, rotorZ(panelU, 0.085), panelLength, 0.72, 0.045, roll, C.ivory, rotorYaw, id);
+      // Thick red frame, then the ivory sail cloth inset inside it.
+      kit.rolledBox(rotorX(center.u, 0.05), hub.y + center.v, rotorZ(center.u, 0.05), length + 0.02, width + border * 2, 0.11, roll, C.coral, rotorYaw, id);
+      kit.rolledBox(rotorX(center.u, 0.095), hub.y + center.v, rotorZ(center.u, 0.095), length - 0.03, width, 0.05, roll, C.ivory, rotorYaw, id);
 
-    // Red perimeter rails frame each sail so it reads as cloth in a red border.
-    for (const lateral of [-0.44, 0.44]) {
-      const railU = ca * panelCenter - sa * lateral;
-      const railV = sa * panelCenter + ca * lateral;
-      kit.rolledBox(rotorX(railU, 0.13), hub.y + railV, rotorZ(railU, 0.13), panelLength + 0.06, 0.075, 0.035, roll, C.red, rotorYaw, id);
+      // Thin dark spar keeps the sail readable without overpowering the frame.
+      const spar = point((band.start + band.end) / 2, trailing + border + 0.035);
+      kit.rolledBox(rotorX(spar.u, 0.14), hub.y + spar.v, rotorZ(spar.u, 0.14), length + 0.02, 0.045, 0.03, roll, C.navy, rotorYaw, id);
     }
 
-    for (const distance of [0.95, 1.95, 2.95]) {
-      const barU = ca * distance;
-      const barV = sa * distance;
-      kit.rolledBox(rotorX(barU, 0.12), hub.y + barV, rotorZ(barU, 0.12), 0.075, 0.86, 0.035, roll, C.coral, rotorYaw, id);
-    }
-
-    const tipU = ca * 3.62;
-    const tipV = sa * 3.62;
-    kit.rolledBox(rotorX(tipU, 0.07), hub.y + tipV, rotorZ(tipU, 0.07), 0.2, 1.0, 0.08, roll, C.red, rotorYaw, id);
+    // Blunt red cap closes the outer end of the arm.
+    const tip = point(3.62, (0.34 + trailing) / 2);
+    kit.rolledBox(rotorX(tip.u, 0.06), hub.y + tip.v, rotorZ(tip.u, 0.06), 0.18, 0.34 + border * 2, 0.09, roll, C.red, rotorYaw, id);
   }
 }
