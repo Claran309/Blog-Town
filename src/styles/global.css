@@ -840,6 +840,32 @@ body { font-family: var(--sans); }
 .season-control select { appearance: none; min-height: 30px; width: 68px; padding: 0 12px 0 0; border: 0; outline: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .season-control select:focus, .season-control select:focus-visible { outline: 0; box-shadow: none; }
 .season-control option { background: var(--paper); color: var(--ink); }
+
+.profile-about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--sage);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-decoration: none;
+}
+
+.profile-about-link:hover {
+  color: var(--gold);
+}
+
+.profile-about-link .icon {
+  width: 14px;
+}
+
+.town-feature-tooltip .tooltip-meta {
+  color: var(--gold);
+}
 .mode-night .season-control { color: #c3d0e2; }
 .mode-night .season-control > .icon:first-of-type { color: #edc78b; }
 @media (max-width: 720px) {

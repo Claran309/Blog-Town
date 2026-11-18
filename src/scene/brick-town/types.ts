@@ -46,6 +46,7 @@ export type TownSceneProps = {
   layout?: TownLayout;
   activePostId?: string;
   hoveredPostId?: string;
+  hoveredFeatureId?: string;
   newPostIds?: readonly string[];
   guidePostId?: string;
   query: string;
@@ -57,8 +58,11 @@ export type TownSceneProps = {
   season: Season;
   reducedMotion: boolean;
   onHoverPost: (id?: string, anchor?: SceneAnchor) => void;
+  onHoverFeature: (id?: string, anchor?: SceneAnchor) => void;
   onResolvePostAnchor: (id: string, anchor: SceneAnchor) => void;
+  onResolveFeatureAnchor: (id: string, anchor: SceneAnchor) => void;
   onSelectPost: (id: string, pointerType?: string) => void;
+  onOpenFeature: (id: string) => void;
   onTownExplored?: () => void;
 };
 

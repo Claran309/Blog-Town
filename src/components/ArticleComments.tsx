@@ -51,11 +51,13 @@ type Props = {
   postId: string;
   commentPath?: string;
   title: string;
-  colorMode: 'day' | 'night';
-  scrollRoot: RefObject<HTMLElement | null>;
+  colorMode?: 'day' | 'night';
+  scrollRoot?: RefObject<HTMLElement | null>;
+  heading?: string;
+  intro?: string;
 };
 
-export default function ArticleComments({ postId, commentPath, title, colorMode, scrollRoot }: Props) {
+export default function ArticleComments({ postId, commentPath, title, colorMode = 'day', scrollRoot, heading = '评论', intro = '欢迎留下想法或问题。这里承接旧站已有评论。' }: Props) {
   const containerRef = useRef<HTMLElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>('waiting');
@@ -93,7 +95,7 @@ export default function ArticleComments({ postId, commentPath, title, colorMode,
         observer.disconnect();
         start();
       }
-    }, { root: scrollRoot.current, rootMargin: '400px 0px' });
+    }, { root: scrollRoot?.current ?? null, rootMargin: '400px 0px' });
     observer.observe(container);
 
     return () => {
@@ -104,8 +106,8 @@ export default function ArticleComments({ postId, commentPath, title, colorMode,
 
   if (!commentConfig.enabled) return null;
   return <section ref={containerRef} id="article-comments" className="article-comments" data-color-mode={colorMode} aria-labelledby="article-comments-title">
-    <header className="article-comments-heading"><h2 id="article-comments-title">评论</h2><a href="https://github.com/Claran309" target="_blank" rel="noreferrer noopener">留言与讨论 <span aria-hidden="true">↗</span></a></header>
-    <p className="article-comments-intro">欢迎留下想法或问题。这里承接旧站已有评论。</p>
+    <header className="article-comments-heading"><h2 id="article-comments-title">{heading}</h2><a href="https://github.com/Claran309" target="_blank" rel="noreferrer noopener">留言与讨论 <span aria-hidden="true">↗</span></a></header>
+    <p className="article-comments-intro">{intro}</p>
     <div className="article-comments-widget" aria-busy={status === 'waiting'}>
       {status === 'waiting' && <p className="article-comments-status" role="status">正在加载评论…</p>}
       {status === 'error' && <div className="article-comments-status" role="status"><p>评论暂时无法加载，请稍后重试。</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>重新加载</button></div>}

@@ -15,6 +15,7 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.
 import '@babylonjs/core/Culling/ray.js';
 import { BOARD, buildWorld, randomFor } from './world';
 import { buildHouse, FLOOR_HEIGHT, GROUND_Y } from './buildings';
+import { buildFeature } from './features';
 import { buildMinifig } from './minifig';
 import { createLife, tickLife, type Citizen } from './life';
 import { weatherIsPrecipitating } from '../../data/town-weather';
@@ -27,8 +28,8 @@ import type { TownLayout } from '../../data/town-layout';
 import type { TownSceneProps } from './types';
 import { clampToPanBounds, getCameraPanBounds, getDragPanDelta } from './view';
 
-export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
-export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onResolvePostAnchor'|'onSelectPost'|'onTownExplored'> & {
+export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
+export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onSelectPost'|'onOpenFeature'|'onTownExplored'> & {
   onResolveNewPostAnchors?: (frame: PostNoticeFrame) => void;
 };
 const color=(hex:string)=>Color3.FromHexString(hex);
@@ -120,6 +121,9 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   canvas.dataset.worldBuildMs=String(Math.round(performance.now()-worldStarted));
   const houses=layout.plots.map(p=>buildHouse(scene,p,mobile));
   const houseMeshes=houses.flatMap(h=>h.meshes);
+  const features=(layout.features??[]).map(feature=>buildFeature(scene,feature,mobile));
+  const featureMeshes=features.flatMap(feature=>feature.meshes);
+  const featureById=new Map(features.map(feature=>[feature.feature.id,feature]));
   const postNotices=createPostNoticeProjector(scene,camera,houses);
   const seasons=createSeasonController({scene,world,mobile,seed:layout.seed,surfaces:[...world.snowSurfaces,...houses.flatMap(h=>h.snowSurfaces)]});
   const weather=createWeatherController(scene,layout.seed,mobile);
@@ -128,8 +132,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   // Terrain plates cannot cast a useful shadow onto themselves. Excluding that
   // multi-million-instance surface cuts most shadow-map geometry while houses,
   // trees, props and citizens retain their natural shadows.
-  for(const m of [...world.shadowCasters,...houseMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
-  for(const m of [...world.meshes,...houseMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
+  for(const m of [...world.shadowCasters,...houseMeshes,...featureMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
+  for(const m of [...world.meshes,...houseMeshes,...featureMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
   let glow:import('@babylonjs/core/Layers/glowLayer.js').GlowLayer|undefined;
   let highlights:import('@babylonjs/core/Layers/highlightLayer.js').HighlightLayer|undefined;
   let fxaa:import('@babylonjs/core/PostProcesses/fxaaPostProcess.js').FxaaPostProcess|undefined;
@@ -147,6 +151,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     // filter outlines from turning whole houses into night lights.
     for(const m of [...world.meshes,...seasons.meshes])glow.addExcludedMesh(m);
     for(const m of houseMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
+    for(const m of featureMeshes)glow.addExcludedMesh(m);
     highlights=new highlightModule.HighlightLayer('article-floor-highlight',scene,{mainTextureRatio:mobile?0.32:0.5});
     highlights.blurHorizontalSize=mobile?0.35:0.55;highlights.blurVerticalSize=mobile?0.35:0.55;highlights.innerGlow=false;
     if(fxaaModule){fxaa=new fxaaModule.FxaaPostProcess('brick-fxaa',1,camera);fxaa.samples=1;}
@@ -165,6 +170,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   const postSearchText=new Map(posts.map(p=>[p.id,[p.title,p.description,p.category,...p.tags,p.series??''].join(' ').toLowerCase()]));
   const houseByPostId=new Map<string,ReturnType<typeof buildHouse>>();
   for(const house of houses)for(const id of house.ids)houseByPostId.set(id,house);
+  let featureFocus='';
   let articleMeshes=[...houseMeshes,...seasons.articleMeshes];
   let highlightSignature='';
   let state={...initial};let frames=0;let elapsed=0;
@@ -194,6 +200,13 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     for(const m of world.lamps){const mat=m.material as PBRMaterial;mat.emissiveColor=night?color('#ffba5b'):Color3.Black();mat.emissiveIntensity=night?1.5:0;}
     weather.set(profile.precipitation,rainy,state.reducedMotion);if(glow)glow.isEnabled=night;
   }
+  function applyFeatureFocus(id?: string) {
+    const next=id&&featureById.has(id)?id:'';
+    if(next===featureFocus)return;
+    featureFocus=next;
+    for(const house of houses)for(const mesh of house.meshes)mesh.visibility=next?0.55:1;
+    requestDraw();
+  }
   function update(next:SceneState) {
     const seasonChanged=next.season!==state.season;
     const rebuildPeople=next.colorMode!==state.colorMode;
@@ -205,9 +218,9 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       shadows.getShadowMap()?.resetRefreshCounter();
       articleMeshes=[...houseMeshes,...seasons.articleMeshes];
     }
-    state={...next};if(rebuildPeople)populate();else if(seasonChanged)rebuildFigures();if(environmentChanged)lighting();
+    state={...next};applyFeatureFocus(state.hoveredFeatureId);if(rebuildPeople)populate();else if(seasonChanged)rebuildFigures();if(environmentChanged)lighting();
     if(state.reducedMotion)seasons.tick(0,true);
-    const nextHighlightSignature=[state.query,state.category??'',state.tag??'',state.hoveredPostId??'',state.activePostId??'',state.season].join('\u0000');
+    const nextHighlightSignature=[state.query,state.category??'',state.tag??'',state.hoveredPostId??'',state.hoveredFeatureId??'',state.activePostId??'',state.season].join('\u0000');
     if(highlights && nextHighlightSignature!==highlightSignature) {
       const needle=state.query.trim().toLowerCase();let hasHighlight=false;
       for(const mesh of articleMeshes){
@@ -216,10 +229,15 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
         const direct=post.id===state.hoveredPostId||post.id===state.activePostId;
         if(direct||matches){highlights.addMesh(mesh,color(direct?'#90e3d4':'#edbb53'));hasHighlight=true;}else highlights.removeMesh(mesh);
       }
+      for(const feature of features){
+        const direct=feature.feature.id===state.hoveredFeatureId;
+        for(const mesh of feature.meshes){if(direct){highlights.addMesh(mesh,color('#f6c85c'));hasHighlight=true;}else highlights.removeMesh(mesh);}
+      }
       highlights.isEnabled=hasHighlight;
       highlightSignature=nextHighlightSignature;
     }
     if(state.hoveredPostId)anchor(state.hoveredPostId);
+    if(state.hoveredFeatureId)anchorFeature(state.hoveredFeatureId);
     requestDraw();
   }
   function anchor(id:string){
@@ -229,6 +247,14 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
     const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
     callbacks().onResolvePostAnchor(id,a);return a;
+  }
+  function anchorFeature(id:string){
+    const feature=featureById.get(id);if(!feature)return;
+    const point=new Vector3(feature.feature.x,GROUND_Y+feature.anchorY,feature.feature.z);
+    const rect=canvas.getBoundingClientRect();
+    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
+    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    callbacks().onResolveFeatureAnchor(id,a);return a;
   }
   let lastHover:string|undefined,lastPickAt=0;
   const pointers=new Map<number,{x:number;y:number;type:string}>();
@@ -246,14 +272,19 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     camera.orthoBottom=centerY+(camera.orthoBottom!-centerY)*scale;
     zoom=clamped;clampCameraTarget();requestDraw();
   };
-  function pick(event:PointerEvent){
+  type PickTarget={kind:'post'|'feature';id:string};
+  function pick(event:PointerEvent):PickTarget|undefined{
     const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
     // Pick ALL real solid surfaces. Roof/terrain/tree occlusion is respected;
     // a hidden wall can never be clicked through another object.
     const hit=scene.pick(x,y,m=>m.isPickable&&m.isVisible);
-    return hit?.hit?hit.pickedMesh?.metadata?.postId as string|undefined:undefined;
+    const metadata=hit?.hit?hit.pickedMesh?.metadata as {postId?:string;featureId?:string}|undefined:undefined;
+    if(metadata?.featureId)return {kind:'feature',id:metadata.featureId};
+    if(metadata?.postId)return {kind:'post',id:metadata.postId};
+    return undefined;
   }
-  const onWheel=(e:WheelEvent)=>{e.preventDefault();applyZoom(zoom-e.deltaY*0.0015);lastHover=undefined;callbacks().onHoverPost(undefined);};
+  const clearHover=()=>{lastHover=undefined;callbacks().onHoverPost(undefined);callbacks().onHoverFeature(undefined);};
+  const onWheel=(e:WheelEvent)=>{e.preventDefault();applyZoom(zoom-e.deltaY*0.0015);clearHover();};
   const onMove=(e:PointerEvent)=>{
     if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
     if(pinch&&pointers.size>=2){
@@ -261,7 +292,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       const ratio=distanceBetween(a,b)/Math.max(1,pinch.startDistance);
       if(Math.abs(ratio-1)>0.01)pinch.moved=true;
       applyZoom(pinch.startZoom*ratio);
-      lastHover=undefined;callbacks().onHoverPost(undefined);
+      clearHover();
       canvas.style.cursor='grabbing';
       return;
     }
@@ -270,7 +301,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       down.lastX=e.clientX;down.lastY=e.clientY;
       const totalX=e.clientX-down.x,totalY=e.clientY-down.y;
       if(down.moved||Math.hypot(totalX,totalY)>7){
-        if(!down.moved){lastHover=undefined;callbacks().onHoverPost(undefined);}
+        if(!down.moved){clearHover();}
         down.moved=true;
         const perPixel=(camera.orthoRight!-camera.orthoLeft!)/canvas.clientWidth;
         const pan=getDragPanDelta(camera.alpha,camera.beta,dx,dy,perPixel);
@@ -282,10 +313,15 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     // Touch has no hover: previews are selected explicitly on pointer-up.
     if(e.pointerType!=='mouse')return;
     const now=performance.now();if(now-lastPickAt<32)return;lastPickAt=now;
-    const id=pick(e);canvas.style.cursor=id?'pointer':'grab';
-    if(id!==lastHover){lastHover=id;callbacks().onHoverPost(id,id?{x:e.clientX,y:e.clientY}:undefined);}
+    const target=pick(e);canvas.style.cursor=target?'pointer':'grab';
+    const key=target?`${target.kind}:${target.id}`:undefined;
+    if(key!==lastHover){
+      lastHover=key;
+      callbacks().onHoverPost(target?.kind==='post'?target.id:undefined,target?.kind==='post'?{x:e.clientX,y:e.clientY}:undefined);
+      callbacks().onHoverFeature(target?.kind==='feature'?target.id:undefined,target?.kind==='feature'?{x:e.clientX,y:e.clientY}:undefined);
+    }
   };
-  const onLeave=(e:PointerEvent)=>{if(e.pointerType!=='mouse')return;lastHover=undefined;callbacks().onHoverPost(undefined);if(!down)canvas.style.cursor='grab';};
+  const onLeave=(e:PointerEvent)=>{if(e.pointerType!=='mouse')return;clearHover();if(!down)canvas.style.cursor='grab';};
   let down:{x:number;y:number;lastX:number;lastY:number;pointerId:number;moved:boolean}|undefined;
   const onDown=(e:PointerEvent)=>{
     if(e.button!==0||(e.pointerType==='mouse'&&!e.isPrimary))return;
@@ -295,7 +331,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       const [a,b]=Array.from(pointers.values());
       pinch={startDistance:distanceBetween(a,b),startZoom:zoom,moved:false};
       if(down){down.moved=true;down=undefined;}
-      lastHover=undefined;callbacks().onHoverPost(undefined);canvas.style.cursor='grabbing';
+      clearHover();canvas.style.cursor='grabbing';
       return;
     }
     if(down||pointers.size!==1)return;
@@ -311,9 +347,10 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     }
     if(!down||e.pointerId!==down.pointerId){releasePointer(e.pointerId);return;}
     if(select&&!down.moved&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<7){
-      const id=pick(e);
-      if(id)callbacks().onSelectPost(id,e.pointerType);
-      else {lastHover=undefined;callbacks().onHoverPost(undefined);}
+      const target=pick(e);
+      if(target?.kind==='feature')callbacks().onOpenFeature(target.id);
+      else if(target?.kind==='post')callbacks().onSelectPost(target.id,e.pointerType);
+      else clearHover();
     }
     releasePointer(down.pointerId);
     down=undefined;canvas.style.cursor='grab';
@@ -324,7 +361,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   populate();lighting();update(initial);
   scene.blockMaterialDirtyMechanism=false;
   canvas.dataset.sceneBuildMs=String(Math.round(performance.now()-buildStarted));
-  const resize=new ResizeObserver(()=>{fit(true);if(state.hoveredPostId)anchor(state.hoveredPostId);});resize.observe(canvas.parentElement!);
+  const resize=new ResizeObserver(()=>{fit(true);if(state.hoveredPostId)anchor(state.hoveredPostId);if(state.hoveredFeatureId)anchorFeature(state.hoveredFeatureId);});resize.observe(canvas.parentElement!);
   let lastDiagnostics=0,slowRenderFrames=0,firstFramePublished=false;
   function publishDiagnostics(now:number){
     canvas.dataset.ready='true';canvas.dataset.frames=String(frames);canvas.dataset.weather=rainy?weather.kind:'clear';canvas.dataset.season=state.season;canvas.dataset.colorMode=state.colorMode;canvas.dataset.reducedMotion=String(state.reducedMotion);canvas.dataset.seasonChanges=String(seasonChanges);canvas.dataset.seasonCover=String(seasons.coverCount);canvas.dataset.seasonTransition=String(seasons.transitioning);canvas.dataset.precipitationAnimated=String(weather.animated);canvas.dataset.renderer=engine.webGLVersion===2?'webgl2':'webgl1';

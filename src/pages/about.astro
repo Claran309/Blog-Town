@@ -1,0 +1,125 @@
+---
+import { siteConfig } from '../config/site';
+import { analyticsConfig } from '../config/analytics';
+import ArticleComments from '../components/ArticleComments';
+import '../styles/global.css';
+import '../styles/about.css';
+
+const title = `关于我 · ${siteConfig.title}`;
+const description = `${siteConfig.profile.name} 的个人介绍，以及这座积木小镇的故事。`;
+const canonical = new URL('/about/', siteConfig.siteUrl).href;
+---
+
+<html lang={siteConfig.language}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <script is:inline>
+      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('mode-night', dark);
+      document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0b1220' : '#ffffff');
+    </script>
+    {analyticsConfig.enabled && <script is:inline define:vars={{ gtmId: analyticsConfig.gtmId, clarityId: analyticsConfig.clarityId, allowedHosts: analyticsConfig.allowedHosts }}>
+      window.dataLayer = window.dataLayer || [];
+      window.clarity = window.clarity || function () {
+        (window.clarity.q = window.clarity.q || []).push(arguments);
+      };
+      function loadAnalytics() {
+        if (!allowedHosts.includes(window.location.hostname)) return;
+        (function (w, d, s, l, i) {
+          w[l] = w[l] || [];
+          w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+          const first = d.getElementsByTagName(s)[0];
+          const script = d.createElement(s);
+          const layer = l !== 'dataLayer' ? '&l=' + l : '';
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + layer;
+          first.parentNode.insertBefore(script, first);
+        })(window, document, 'script', 'dataLayer', gtmId);
+        (function (c, l, a, r, i, t, y) {
+          c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+          t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+          y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+        })(window, document, 'clarity', 'script', clarityId);
+      }
+      if ('requestIdleCallback' in window) window.requestIdleCallback(loadAnalytics, { timeout: 3000 });
+      else window.setTimeout(loadAnalytics, 3000);
+    </script>}
+    <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.profile.name} />
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content={siteConfig.title} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(siteConfig.profile.avatar, siteConfig.siteUrl)} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(siteConfig.profile.avatar, siteConfig.siteUrl)} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title={`${siteConfig.title} · RSS`} href={new URL('/rss.xml', siteConfig.siteUrl)} />
+    <link rel="sitemap" type="application/xml" href={new URL('/sitemap.xml', siteConfig.siteUrl)} />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <title>{title}</title>
+  </head>
+  <body>
+    {analyticsConfig.enabled && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${analyticsConfig.gtmId}`} height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager" /></noscript>}
+    <div class="about-page">
+      <header class="about-topbar">
+        <a class="about-brand" href="/"><span>Claran</span> <strong>Blog</strong></a>
+        <nav aria-label="主导航">
+          <a href="/">小镇</a>
+          <a href="/posts/">档案</a>
+          <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
+        </nav>
+      </header>
+      <main class="about-main">
+        <a class="about-back" href="/">← 回到小镇</a>
+        <section class="about-hero" aria-labelledby="about-title">
+          <img src={siteConfig.profile.avatar} alt={siteConfig.profile.name} />
+          <div>
+            <p class="about-eyebrow">TOWN RESIDENT · ABOUT</p>
+            <h1 id="about-title">{siteConfig.profile.name}</h1>
+            <p class="about-headline">{siteConfig.profile.headline}</p>
+            <p class="about-bio">{siteConfig.profile.bio}</p>
+          </div>
+        </section>
+        <div class="about-grid">
+          <section class="about-card" aria-labelledby="about-me-title">
+            <h2 id="about-me-title">关于我</h2>
+            <p>我是 Claran，一名正在学习 Go、后端开发和 Agent 的学生。这个博客记录学习过程，也记录一些还没有答案的问题。</p>
+            <p>我喜欢把复杂的东西拆开理解，再重新拼回去。小镇里的每栋房子代表一篇笔记，楼层越多，说明我在一个主题上停留得越久。</p>
+          </section>
+          <section class="about-card about-landmark" aria-labelledby="about-town-title">
+            <span class="landmark-label">TOWN LANDMARK</span>
+            <h2 id="about-town-title">中心风车</h2>
+            <p>小镇中心的这座风车不占文章楼层，它是这座博客的公共地标，也是 About 页面的地图入口。</p>
+            <p>悬停侧边栏的简介卡，地图上会高亮它。</p>
+          </section>
+        </div>
+        <div class="about-grid">
+          <section class="about-card" aria-labelledby="about-now-title">
+            <h2 id="about-now-title">最近在做什么</h2>
+            <p>在补 Go 工程、分布式系统和计算机基础，也在尝试把 Agent 真正放进后端业务里，而不是只停留在演示。</p>
+            <p>小镇会继续增加新的建筑，但它们应该先是“可读的空间”，然后才是装饰。</p>
+          </section>
+          <section class="about-card" aria-labelledby="about-links-title">
+            <h2 id="about-links-title">找到我</h2>
+            <p>如果你想聊聊后端、Agent、博客，或者只是路过打个招呼，可以从这里开始。</p>
+            <div class="about-links">
+              {siteConfig.profile.links.map((link) => <a href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
+              <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
+            </div>
+          </section>
+        </div>
+        <div class="about-comments-wrap">
+          <ArticleComments client:visible postId="about" commentPath="/about" title="关于 Claran" heading="留言板" intro="对博客、小镇或任何想法，都可以留在这里。" />
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

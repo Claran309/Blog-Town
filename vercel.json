@@ -472,21 +472,6 @@
       "permanent": true
     },
     {
-      "source": "/about",
-      "destination": "https://classic.claran-blog.work/about/",
-      "permanent": true
-    },
-    {
-      "source": "/about/",
-      "destination": "https://classic.claran-blog.work/about/",
-      "permanent": true
-    },
-    {
-      "source": "/about/:path*",
-      "destination": "https://classic.claran-blog.work/about/:path*",
-      "permanent": true
-    },
-    {
       "source": "/friends",
       "destination": "https://classic.claran-blog.work/friends/",
       "permanent": true

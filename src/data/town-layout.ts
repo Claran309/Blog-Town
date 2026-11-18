@@ -55,6 +55,20 @@ export interface TownEntity {
   rotation?: number;
 }
 
+export type TownFeatureKind = 'about';
+
+export interface TownFeature {
+  id: string;
+  kind: TownFeatureKind;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  title: string;
+  summary: string;
+  href: string;
+}
+
 export interface TownLayout {
   seed: string;
   regions: WorldRegion[];
@@ -62,6 +76,8 @@ export interface TownLayout {
   plots: TownPlot[];
   /** All collision-reserved article lots, including currently empty lots. */
   reservedPlots: TownPlot[];
+  /** Non-article landmarks such as About or future civic buildings. */
+  features: TownFeature[];
   center: Point;
 }
 
@@ -76,6 +92,20 @@ export const visibleBuildingBounds = {
   minZ: -25.0,
   maxZ: 25.0,
 };
+
+export const townFeatures: TownFeature[] = [
+  {
+    id: 'about',
+    kind: 'about',
+    x: 0,
+    z: 0,
+    width: 2.24,
+    depth: 2.00,
+    title: '关于 Claran',
+    summary: '关于我、这个博客，以及这座积木小镇。',
+    href: '/about/',
+  },
+];
 
 const worldBounds: WorldRegion = {
   id: 'world-buildable',
@@ -513,5 +543,5 @@ export const createTownLayout = (seed = 'river-bend-demo-v2', posts: LayoutPost[
       seedIndex: reservedPlots.length,
     });
   }
-  return { seed, regions: worldRegions, entities: townEntities, plots, reservedPlots, center: { x: 0, z: 0 } };
+  return { seed, regions: worldRegions, entities: townEntities, plots, reservedPlots, features: townFeatures, center: { x: 0, z: 0 } };
 };
