@@ -71,12 +71,12 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   scene.imageProcessingConfiguration.toneMappingType=ImageProcessingConfiguration.TONEMAPPING_ACES;
   scene.imageProcessingConfiguration.exposure=1.15;
   scene.imageProcessingConfiguration.contrast=1.06;
-  const camera=new ArcRotateCamera('diorama-camera',Math.PI*0.68,0.96,36,new Vector3(0,0.2,0),scene);
+  const camera=new ArcRotateCamera('diorama-camera',Math.PI*0.68,0.96,36,new Vector3(0,2.5,0),scene);
   camera.mode=Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ=0.1;camera.maxZ=160;
   // Deliberate fixed composition keeps the article frontage readable. Zoom is
   // explicit; a click/touch never gets confused with an orbit gesture.
-  const defaultZoom=mobile?1:1.9;
+  const defaultZoom=mobile?1:1.7;
   let zoom=defaultZoom;
   const clampCameraTarget=()=>{
     const panBounds=getCameraPanBounds(
@@ -151,7 +151,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     // filter outlines from turning whole houses into night lights.
     for(const m of [...world.meshes,...seasons.meshes])glow.addExcludedMesh(m);
     for(const m of houseMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
-    for(const m of featureMeshes)glow.addExcludedMesh(m);
+    for(const m of featureMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
     highlights=new highlightModule.HighlightLayer('article-floor-highlight',scene,{mainTextureRatio:mobile?0.32:0.5});
     highlights.blurHorizontalSize=mobile?0.35:0.55;highlights.blurVerticalSize=mobile?0.35:0.55;highlights.innerGlow=false;
     if(fxaaModule){fxaa=new fxaaModule.FxaaPostProcess('brick-fxaa',1,camera);fxaa.samples=1;}
@@ -193,7 +193,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     hemi.diffuse=color(profile.lighting.sky);
     hemi.intensity=night?0.18:rainy?0.40:0.25;scene.environmentIntensity=night?0.20:0.5;
     scene.imageProcessingConfiguration.exposure=night?0.8:0.82;
-    for(const m of houseMeshes)if(m.metadata.glass){
+    for(const m of [...houseMeshes,...featureMeshes])if(m.metadata.glass){
       const mat=m.material as PBRMaterial;mat.emissiveColor=night?color('#ffb751'):Color3.Black();mat.emissiveIntensity=night?1.5:0;
       mat.albedoColor=color(night?'#edbd6d':'#5e97a4');
     }
