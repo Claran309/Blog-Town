@@ -542,13 +542,13 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   --sage: #2563eb;
   --blue: #3b82f6;
   --gold: #2563eb;
-  --sans: 'IBM Plex Sans Variable', 'IBM Plex Sans SC', 'PingFang SC', sans-serif;
-  --display: 'Space Grotesk Variable', 'IBM Plex Sans SC', 'PingFang SC', sans-serif;
-  --expressive: 'Space Grotesk Variable', 'ZCOOL QingKe HuangYou', 'IBM Plex Sans SC', sans-serif;
+  --sans: 'IBM Plex Sans Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --display: 'Space Grotesk Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --expressive: 'Space Grotesk Variable', 'ZCOOL QingKe HuangYou', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --serif: var(--display);
-  --accent: 'Bodoni Moda Variable', 'IBM Plex Sans SC', Georgia, serif;
+  --accent: 'Bodoni Moda Variable', Georgia, 'Songti SC', serif;
   --reading: var(--sans);
-  --mono: 'Space Mono', 'IBM Plex Sans SC', ui-monospace, monospace;
+  --mono: 'Space Mono', 'PingFang SC', ui-monospace, monospace;
 }
 
 html, body, .app-shell { background: var(--paper); color: var(--ink); }

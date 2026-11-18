@@ -31,7 +31,7 @@ export type SearchEntry = {
   tags: string[];
   series?: string;
   description: string;
-  searchText: string;
+  searchTextLower: string;
 };
 
 export type TownPost = TownPostSummary & {

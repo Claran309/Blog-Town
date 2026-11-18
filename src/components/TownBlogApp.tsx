@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElementType } from 'react';
 import type { SceneAnchor, TownPostSummary } from './TownScene';
 import type { SearchEntry } from '../scene/brick-town/types';
@@ -111,7 +111,7 @@ const formatDate = (value: string) => {
   if (Number.isNaN(date.valueOf())) return value;
   return `${String(date.getFullYear()).slice(-2)}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
-const getScore = (post: TownPostSummary, query: string, searchText = '') => {
+const getScore = (post: TownPostSummary, query: string, searchTextLower = '') => {
   const needle = query.trim().toLowerCase();
   if (!needle) return 0;
   let score = 0;
@@ -120,7 +120,7 @@ const getScore = (post: TownPostSummary, query: string, searchText = '') => {
   if (post.tags.join(' ').toLowerCase().includes(needle)) score += 34;
   if (post.series?.toLowerCase().includes(needle)) score += 30;
   if (post.description.toLowerCase().includes(needle)) score += 15;
-  if (searchText.toLowerCase().includes(needle)) score += 8;
+  if (searchTextLower.includes(needle)) score += 8;
   return score;
 };
 
@@ -161,6 +161,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const [searchResultIndex, setSearchResultIndex] = useState(0);
   const [searchEntries, setSearchEntries] = useState<SearchEntry[]>();
   const searchIndexRequested = useRef(false);
+  const deferredQuery = useDeferredValue(query);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [touchPostId, setTouchPostId] = useState<string>();
@@ -176,21 +177,21 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
 
   const postMap = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts]);
   const sortedPosts = useMemo(() => [...posts].sort((a, b) => +new Date(b.date) - +new Date(a.date)), [posts]);
-  const searchTextByPost = useMemo(() => new Map((searchEntries ?? []).map((entry) => [entry.id, entry.searchText])), [searchEntries]);
+  const searchTextByPost = useMemo(() => new Map((searchEntries ?? []).map((entry) => [entry.id, entry.searchTextLower])), [searchEntries]);
   const categories = useMemo(() => [...new Set(posts.map((post) => post.category))], [posts]);
   const tags = useMemo(() => [...new Set(posts.flatMap((post) => post.tags))], [posts]);
   const filteredPosts = useMemo(() => sortedPosts.filter((post) => {
-    const matchesQuery = !query || getScore(post, query, searchTextByPost.get(post.id)) > 0;
+    const matchesQuery = !deferredQuery || getScore(post, deferredQuery, searchTextByPost.get(post.id)) > 0;
     const matchesCategory = !activeCategory || post.category === activeCategory;
     const matchesTag = !activeTag || post.tags.includes(activeTag);
     return matchesQuery && matchesCategory && matchesTag;
-  }), [activeCategory, activeTag, query, searchTextByPost, sortedPosts]);
+  }), [activeCategory, activeTag, deferredQuery, searchTextByPost, sortedPosts]);
   const searchResults = useMemo(() => sortedPosts
-    .map((post) => ({ post, score: getScore(post, query, searchTextByPost.get(post.id)) }))
+    .map((post) => ({ post, score: getScore(post, deferredQuery, searchTextByPost.get(post.id)) }))
     .filter((result) => result.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
-    .map((result) => result.post), [query, searchTextByPost, sortedPosts]);
+    .map((result) => result.post), [deferredQuery, searchTextByPost, sortedPosts]);
   const selectedPost = selectedPostId ? postMap.get(selectedPostId) : undefined;
   const selectedSections = selectedPostId ? contentById[selectedPostId] : undefined;
   useEffect(() => {

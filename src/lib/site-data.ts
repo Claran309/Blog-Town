@@ -73,7 +73,7 @@ const buildSiteData = async () => {
     tags: post.tags,
     series: post.series,
     description: post.description,
-    searchText: post.searchText,
+    searchTextLower: post.searchText.toLowerCase(),
   }));
 
   return {
