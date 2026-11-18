@@ -171,6 +171,19 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 
 .article-cover { aspect-ratio: 16 / 8.8; margin: 28px 0 8px; overflow: hidden; border: 1px solid var(--line-strong); background: var(--paper-2); }
 .article-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* In-app About reuses the article reading layout so the sidebar and town stay
+   mounted, while the avatar doubles as a compact cover. */
+.about-inapp .article-cover.about-cover { aspect-ratio: 16 / 4.2; display: grid; place-items: center; background: linear-gradient(180deg, color-mix(in srgb, var(--paper-2) 94%, var(--sage)), color-mix(in srgb, var(--paper-3) 88%, var(--blue))); }
+.about-inapp .article-cover.about-cover img { width: auto; max-width: 34%; height: 84%; object-fit: contain; object-position: center; border-radius: 4px; box-shadow: 0 6px 18px rgba(45, 39, 29, .16); }
+.about-inapp .article-body > .article-section > p { margin: 0 0 21px; color: #575850; font-family: var(--serif); font-size: 15px; line-height: 2.05; }
+.about-inapp .about-links { margin-top: 4px; }
+.about-inapp .article-contents.about-contents { margin-top: 27px; }
+.about-inapp .about-contents .article-contents-viewport { display: grid; gap: 7px; }
+.about-inapp .about-contents a { position: relative; padding: 0 0 0 12px; color: #77736a; font-family: var(--serif); font-size: 10px; line-height: 1.5; text-decoration: none; }
+.about-inapp .about-contents a::before { content: ''; position: absolute; left: 0; top: .55em; width: 4px; height: 4px; border-radius: 50%; background: var(--sage); }
+.about-inapp .about-contents a:hover, .about-inapp .about-contents a.is-active { color: var(--ink); }
+.about-inapp .about-contents a.is-active { font-weight: 600; }
 .article-section.is-hidden { display: none; }
 .article-section-content { color: #575850; font-family: var(--serif); font-size: 15px; line-height: 2.05; overflow-wrap: anywhere; }
 .article-section-content > :first-child { margin-top: 0; }

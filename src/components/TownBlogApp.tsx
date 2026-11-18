@@ -418,7 +418,9 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   };
   const openFeature = (id: string) => {
     const feature = layout?.features.find((item) => item.id === id);
-    if (feature?.href) window.location.assign(feature.href);
+    if (!feature?.href) return;
+    if (feature.href === '/about/') { navigate('about'); return; }
+    window.location.assign(feature.href);
   };
   const onSidebarPostHover = (id?: string) => {
     setHoveredPostId(id);
@@ -492,8 +494,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
             <div className="brand-block"><div className="brand-mark brand-image"><SidebarImage src={siteConfig.logo} alt="" mobileOpen={mobileSidebarOpen} /></div><div><div className="brand-name">{siteConfig.title}</div><div className="brand-subtitle">{siteConfig.tagline}</div></div><button className="mobile-sidebar-close" type="button" aria-label="关闭侧边栏" onClick={() => setMobileSidebarOpen(false)}>{icon('close')}</button></div>
             <div className="sidebar-rule" />
             <nav className="desktop-sidebar-nav" aria-label="侧边栏入口">
-              <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}>{icon('home')}<span>名片</span></a>
-              <a className="nav-item" href="/about/">{icon('about')}<span>关于</span></a>
+              <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => { setSidebarPanel('profile'); setSidebarCategory(undefined); setSidebarTag(undefined); navigate('town'); })}>{icon('home')}<span>名片</span></a>
+              <a className={`nav-item ${surface === 'about' ? 'is-active' : ''}`} href="/about/" onClick={(event) => handleInternalClick(event, () => navigate('about'))}>{icon('about')}<span>关于</span></a>
               <button className={`nav-item ${sidebarPanel === 'list' ? 'is-active' : ''}`} onClick={() => { setSidebarPanel('list'); }}>{icon('archive')}<span>列表</span><span className="nav-count">{String(posts.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'categories' || sidebarPanel === 'category-posts' ? 'is-active' : ''}`} onClick={() => openExplore('categories')}>{icon('category')}<span>分类</span><span className="nav-count">{String(categories.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'tags' || sidebarPanel === 'tag-posts' ? 'is-active' : ''}`} onClick={() => openExplore('tags')}>{icon('tag')}<span>标签</span><span className="nav-count">{String(tags.length).padStart(2, '0')}</span></button>
@@ -506,8 +508,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
               </nav>
               <div className="sidebar-section-label">探索</div>
               <nav className="secondary-nav">
-                <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}>{icon('home')}<span>名片</span></a>
-                <a className="nav-item" href="/about/">{icon('about')}<span>关于</span></a>
+                <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => { setSidebarPanel('profile'); setSidebarCategory(undefined); setSidebarTag(undefined); navigate('town'); })}>{icon('home')}<span>名片</span></a>
+                <a className={`nav-item ${surface === 'about' ? 'is-active' : ''}`} href="/about/" onClick={(event) => handleInternalClick(event, () => navigate('about'))}>{icon('about')}<span>关于</span></a>
                 <button className={`nav-item ${sidebarPanel === 'categories' || sidebarPanel === 'category-posts' ? 'is-active' : ''}`} onClick={() => openExplore('categories')}>{icon('category')}<span>分类</span><span className="nav-count">{String(categories.length).padStart(2, '0')}</span></button>
                 <button className={`nav-item ${sidebarPanel === 'tags' || sidebarPanel === 'tag-posts' ? 'is-active' : ''}`} onClick={() => openExplore('tags')}>{icon('tag')}<span>标签</span><span className="nav-count">{String(tags.length).padStart(2, '0')}</span></button>
                 <button className={`nav-item ${sidebarPanel === 'friends' ? 'is-active' : ''}`} onClick={() => openExplore('friends')}>{icon('friends')}<span>友邻</span><span className="nav-count">{String(friendLinks.length).padStart(2, '0')}</span></button>
@@ -528,7 +530,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
         <header className={`topnav ${searchOpen ? 'is-search-open' : ''}`}>
           <button ref={menuButtonRef} className="mobile-sidebar-toggle" type="button" aria-label={mobileSidebarOpen ? '关闭侧边栏' : '打开侧边栏'} aria-expanded={mobileSidebarOpen} aria-controls="site-sidebar" onClick={openMobileSidebar}>{icon(mobileSidebarOpen ? 'close' : 'menu')}</button>
           <a className="top-wordmark" href="/" aria-label={`${siteConfig.title} 首页`} onClick={(event) => handleInternalClick(event, () => navigate('town'))}><span>Claran</span> <strong>Blog</strong></a>
-          <nav className="desktop-top-links" aria-label="主导航"><a className={`topnav-link ${surface === 'town' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}><span>小镇</span></a><a className={`topnav-link ${surface === 'archive' ? 'is-active' : ''}`} href="/posts/" onClick={(event) => handleInternalClick(event, () => { setQuery(''); setActiveCategory(undefined); setActiveTag(undefined); navigate('archive'); })}><span>档案</span></a><a className="topnav-link topnav-classic" href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客{icon('external')}</a></nav>
+          <nav className="desktop-top-links" aria-label="主导航"><a className={`topnav-link ${surface === 'town' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => navigate('town'))}><span>小镇</span></a><a className={`topnav-link ${surface === 'about' ? 'is-active' : ''}`} href="/about/" onClick={(event) => handleInternalClick(event, () => navigate('about'))}><span>关于</span></a><a className={`topnav-link ${surface === 'archive' ? 'is-active' : ''}`} href="/posts/" onClick={(event) => handleInternalClick(event, () => { setQuery(''); setActiveCategory(undefined); setActiveTag(undefined); navigate('archive'); })}><span>档案</span></a><a className="topnav-link topnav-classic" href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客{icon('external')}</a></nav>
           <div className="topnav-center" id="topnav-search"><div className="top-search"><span>{icon('search')}</span><input ref={inputRef} value={query} onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); setSearchResultIndex(0); }} onFocus={() => setSearchOpen(true)} onKeyDown={onSearchKeyDown} placeholder="寻找一篇笔记…" aria-label="搜索文章" /><kbd>⌘ K</kbd>{searchOpen && query && <SearchDropdown results={searchResults} activeIndex={searchResultIndex} onHover={onSidebarPostHover} onOpen={openArticle} onArchive={() => { setSearchOpen(false); navigate('archive'); }} status={searchIndexStatus} onRetry={() => { searchIndexRequested.current = false; setSearchIndexStatus('idle'); setSearchRetry((value) => value + 1); }} />}</div></div>
           <div className="topnav-actions"><button className="mobile-search-toggle" aria-controls="topnav-search" aria-label={searchOpen ? '关闭搜索' : '打开搜索'} aria-expanded={searchOpen} onClick={() => { if (searchOpen) { setSearchOpen(false); inputRef.current?.blur(); } else { setSearchOpen(true); window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true })); } }}>{icon(searchOpen ? 'close' : 'search')}</button><button className="mode-button" onClick={toggleColorMode} aria-label="切换昼夜模式">{colorMode === 'day' ? icon('moon') : icon('sun')}<span>{colorMode === 'day' ? '夜间' : '日间'}</span></button><label className="season-control" title={SEASON_PROFILES[season].description}>
             <span className="visually-hidden">小镇季节</span>{icon(SEASON_PROFILES[season].glyph)}
@@ -555,6 +557,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
           </div>
         </section>}
         {surface === 'archive' && <ArchiveView posts={filteredPosts} onOpen={openArticle} />}
+        {surface === 'about' && <AboutView />}
         {surface === 'article' && selectedPost && selectedSections && layout && <ArticleView colorMode={colorMode} navigation={navigation} post={selectedPost} sections={selectedSections} layout={layout} scrollRoot={mainSurfaceRef} onOpen={openArticle} seriesPosts={selectedPost.series ? sortedPosts.filter((post) => post.series === selectedPost.series).sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0)) : []} />}
         {surface === 'article' && selectedPost && !selectedSections && <ArticleLoading post={selectedPost} error={contentError === selectedPost.id} onRetry={() => { setContentError(undefined); setContentRetry((value) => value + 1); }} />}
         {surface === 'article' && !selectedPost && <EmptyView title="还没有选择文章" copy="从小镇或侧边栏打开一篇笔记吧。" action="回到小镇" onAction={() => navigate('town')} />}
@@ -860,6 +863,88 @@ function ArticleContents({ headings, activeHeadingId, readingProgress }: Article
   </div>;
 }
 
+
+const ABOUT_SECTIONS = [
+  {
+    id: 'about-me',
+    title: '关于我',
+    paragraphs: [
+      '我是 Claran，一名在学 Go 和后端开发的学生。',
+      '我真正喜欢的事情是记录：记录一切，无论是代码、感想，还是生活。写着写着，就把一段时间留了下来。',
+      '小镇里的每栋房子代表一篇笔记，楼层越多，说明我在一个主题上停留得越久。',
+    ],
+  },
+  {
+    id: 'about-town',
+    title: '这座小镇',
+    paragraphs: [
+      '这座小镇就是博客的地图：一栋楼是一篇文章，楼层多少对应篇幅长短，街区对应分类和标签。',
+      '可以拖动、缩放，沿着路走，看看最近写下的东西；点开任意一栋楼，就能进入那篇笔记。',
+      '悬停侧边栏的简介卡，地图上会高亮中心地标。',
+    ],
+  },
+  {
+    id: 'about-now',
+    title: '最近在做什么',
+    paragraphs: [
+      '在复习底层：操作系统、计算机网络、数据库，把以前跳过的部分一点点补回来。',
+      '同时在补八股、整理面试题，做开源项目，准备投简历找实习。',
+      '小镇会继续增加新的建筑，但它们应该先是“可读的空间”，然后才是装饰。',
+    ],
+  },
+];
+
+function AboutView() {
+  const activeSection = ABOUT_SECTIONS[0].id;
+  return <section className="article-page about-inapp">
+    <div className="article-layout">
+      <article>
+        <span className="section-eyebrow">TOWN RESIDENT · ABOUT</span>
+        <h1>{siteConfig.profile.name}</h1>
+        <p className="article-dek">{siteConfig.profile.headline}</p>
+        <div className="article-meta"><span>关于</span><span>·</span><span>常驻居民</span><span>·</span><span>{ABOUT_SECTIONS.length} 段</span></div>
+        <figure className="article-cover about-cover"><img src={siteConfig.profile.avatar} alt={siteConfig.profile.name} /></figure>
+        <div className="article-body">
+          {ABOUT_SECTIONS.map((section) => <section className="article-section" key={section.id}>
+            <div className="article-heading-row level-1"><h2 id={section.id}>{section.title}</h2><span className="heading-level-marker" aria-hidden="true">#</span></div>
+            {section.paragraphs.map((text, index) => <p key={index}>{text}</p>)}
+          </section>)}
+          <section className="article-section">
+            <div className="article-heading-row level-1"><h2 id="about-links">找到我</h2><span className="heading-level-marker" aria-hidden="true">#</span></div>
+            <p>有想法、有问题、发现写错了，都可以从这里开始；也可以直接在下面的留言板留一句。</p>
+            <div className="about-links">
+              {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
+              <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
+            </div>
+          </section>
+        </div>
+        {commentConfig.enabled && <Suspense fallback={<section id="article-comments" className="article-comments" aria-label="正在加载评论" />}><ArticleComments key="about" postId="about" commentPath="/about" title="关于 Claran" heading="留言板" intro="对博客、小镇或任何想法，都可以留在这里。" /></Suspense>}
+      </article>
+      <aside className="article-aside">
+        <span className="aside-eyebrow">ON THE MAP</span>
+        <AboutContents activeId={activeSection} />
+      </aside>
+    </div>
+  </section>;
+}
+
+function AboutContents({ activeId }: { activeId: string }) {
+  const jumpTo = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    handleInternalClick(event, () => {
+      const element = document.getElementById(id);
+      const root = document.querySelector<HTMLElement>('.main-scroll');
+      if (!element || !root) return;
+      const target = root.scrollTop + element.getBoundingClientRect().top - root.getBoundingClientRect().top - 104;
+      root.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    });
+  };
+  return <nav className="article-contents about-contents" aria-label="关于页面目录">
+    <span className="aside-eyebrow">CONTENTS</span>
+    <div className="article-contents-viewport">
+      {[...ABOUT_SECTIONS, { id: 'about-links', title: '找到我' }].map((section) => <a key={section.id} href={`#${section.id}`} className={`toc-level-1 ${section.id === activeId ? 'is-active' : ''}`} onClick={(event) => jumpTo(event, section.id)}>{section.title}</a>)}
+    </div>
+  </nav>;
+}
 
 function MiniTownMap({ post, map }: { post: TownPostSummary; map: TownMapModel }) {
   const path = (points: { x: number; z: number }[]) => points.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.z}`).join(' ');
