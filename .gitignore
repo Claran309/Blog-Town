@@ -33,3 +33,5 @@ migration-report.json
 # Local tool caches
 .cache/
 .vite/
+.vercel
+.env*

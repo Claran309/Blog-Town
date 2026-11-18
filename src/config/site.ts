@@ -11,6 +11,7 @@ export interface FriendLink {
   avatar: string;
   url: string;
   description?: string;
+  tags?: string[];
 }
 
 interface SiteConfig {
@@ -38,7 +39,7 @@ export const siteConfig: SiteConfig = {
   shortTitle: 'Claran',
   tagline: 'My little home',
   description: 'Claran 的个人博客，记录后端、Agent 与计算机基础。',
-  siteUrl: 'https://claran-blog.work/',
+  siteUrl: 'https://www.claran-blog.work/',
   classicUrl: 'https://classic.claran-blog.work/',
   logo: '/assets/profile/logo.webp',
   language: 'zh-CN', // 必填：HTML lang 值，例如 zh-CN、en-US。
@@ -58,6 +59,76 @@ export const siteConfig: SiteConfig = {
 };
 
 export const friendLinks: FriendLink[] = [
-  // 可选：友链。每位友邻单独占一行；启用时删除行首 //，并把头像或站点 Logo 放入 public/assets/friends/。
-  // { id: 'friend-id', nickname: '友邻名称', avatar: '/assets/friends/friend-id.png', url: 'https://friend.example.com/', description: '可选的友邻简介' },
+  {
+    id: 'maomeng',
+    nickname: '猫梦',
+    avatar: 'https://avatars.githubusercontent.com/u/221867781?v=4',
+    url: 'https://maomengblog.vercel.app/',
+    description: '我喜欢你',
+    tags: ['Go'],
+  },
+  {
+    id: 'hunxing',
+    nickname: '魂星',
+    avatar: 'https://avatars.githubusercontent.com/u/223064579?v=4',
+    url: 'https://starlight-fall-library.vercel.app/',
+    description: '仰望，会有满天繁星',
+    tags: ['Go'],
+  },
+  {
+    id: 'rinai',
+    nickname: 'Rinai',
+    avatar: 'https://avatars.githubusercontent.com/u/185916106?v=4',
+    url: 'https://blog.g-rinai.cn/',
+    description: '只是一个计算机爱好者',
+    tags: ['Go'],
+  },
+  {
+    id: 'canl',
+    nickname: 'CanL',
+    avatar: 'https://avatars.githubusercontent.com/u/239789803?v=4',
+    url: 'https://www.canl-blog.top/',
+    description: '向各位大佬靠近中',
+    tags: ['Java'],
+  },
+  {
+    id: 'journey-midpoint',
+    nickname: '旅途的中点',
+    avatar: 'https://avatars.githubusercontent.com/u/218602491?v=4',
+    url: 'https://blog.fsui51552.workers.dev/',
+    description: '路漫漫，唯有前行',
+    tags: ['AI'],
+  },
+  {
+    id: 'buluoge',
+    nickname: '补络阁',
+    avatar: 'https://avatars.githubusercontent.com/u/122974688?v=4',
+    url: 'https://blog.tuf3i.cc/',
+    description: '咕咕嘎嘎，咕咕嘎嘎...',
+    tags: ['Go', '运维'],
+  },
+  {
+    id: 'sky-garden',
+    nickname: '空中花园',
+    avatar: 'https://q1.qlogo.cn/g?b=qq&nk=2023270753&s=640',
+    url: 'http://blog-manmu.top',
+    description: '漫随天外云舒云卷',
+    tags: ['Java', 'Go'],
+  },
+  {
+    id: 'heavens-door',
+    nickname: '黑蚊子的门',
+    avatar: 'https://avatars.githubusercontent.com/u/230580333?v=4',
+    url: 'https://www.heavensdoor1.top/',
+    description: '真不是蚊子QAQ',
+    tags: ['Go', 'Agent'],
+  },
+  {
+    id: 'met-terminator',
+    nickname: 'MeTerminator',
+    avatar: 'https://blog.met6.top:444/upload/MeT-HEAD_Watermark.jpg?width=800',
+    url: 'https://blog.met6.top:444/',
+    description: 'Stay Hungry. Stay Foolish. 求知若渴，大智若愚。',
+    tags: ['全栈', 'Geek'],
+  },
 ];

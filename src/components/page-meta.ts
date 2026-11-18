@@ -1,5 +1,6 @@
 import { siteConfig } from '../config/site';
 import { buildPageJsonLd } from '../lib/page-jsonld';
+import { trackClientPageView } from '../lib/analytics';
 import type { TownPostSummary } from '../scene/brick-town/types';
 import type { MainSurface } from './useTownNavigation';
 
@@ -49,10 +50,8 @@ export function updatePageMeta(surface: MainSurface, selectedPost?: TownPostSumm
       ? `全部文章 · ${siteConfig.title}`
       : siteConfig.title;
   const description = selectedPost?.description ?? siteConfig.description;
-  const canonical = new URL(
-    selectedPost ? `/posts/${encodeURIComponent(selectedPost.id)}/` : surface === 'archive' ? '/posts/' : '/',
-    siteConfig.siteUrl,
-  ).href;
+  const pagePath = selectedPost ? `/posts/${encodeURIComponent(selectedPost.id)}/` : surface === 'archive' ? '/posts/' : '/';
+  const canonical = new URL(pagePath, siteConfig.siteUrl).href;
   const cover = new URL(selectedPost?.cover ?? siteConfig.logo, siteConfig.siteUrl).href;
 
   document.title = pageTitle;
@@ -73,4 +72,5 @@ export function updatePageMeta(surface: MainSurface, selectedPost?: TownPostSumm
   setCanonical(canonical);
 
   setJsonLd(buildPageJsonLd(selectedPost));
+  trackClientPageView(pagePath, pageTitle);
 }

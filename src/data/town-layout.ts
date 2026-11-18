@@ -14,7 +14,7 @@ export type TownBuildingStyle =
 export type TownSpecialStyle = Extract<TownBuildingStyle, 'shop' | 'forge' | 'inn' | 'watchtower' | 'chapel' | 'windmill' | 'clocktower'>;
 
 /** Extra empty ground kept around each building for a readable town scale. */
-export const BUILDING_GAP = 0.9;
+export const BUILDING_GAP = 1.9;
 
 /** Shared world coordinate frame used by Babylon and the article mini-map. */
 export const townBoard = { minX: -34.56, maxX: 34.56, minZ: -28.80, maxZ: 28.80 } as const;
