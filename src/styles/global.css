@@ -1647,3 +1647,25 @@ a.touch-preview-read,
     margin-top: 6px;
   }
 }
+
+.topnav-classic {
+  gap: 5px;
+}
+.topnav-classic .icon {
+  width: 11px;
+  height: 11px;
+  color: var(--muted);
+}
+.sidebar-classic-link {
+  color: #b45a22;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  font-style: oblique 8deg;
+  letter-spacing: .04em;
+}
+.sidebar-classic-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
