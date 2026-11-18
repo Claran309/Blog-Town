@@ -28,6 +28,7 @@ Thumbs.db
 coverage/
 test-results/
 playwright-report/
+migration-report.json
 
 # Local tool caches
 .cache/
