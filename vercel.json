@@ -1,0 +1,545 @@
+{
+  "framework": "astro",
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": "dist",
+  "trailingSlash": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/_astro/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/rss-assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/go-AIM/",
+      "destination": "/posts/go-AIM/",
+      "permanent": true
+    },
+    {
+      "source": "/diary1/",
+      "destination": "/posts/diary1/",
+      "permanent": true
+    },
+    {
+      "source": "/diary2/",
+      "destination": "/posts/diary2/",
+      "permanent": true
+    },
+    {
+      "source": "/diary3/",
+      "destination": "/posts/diary3/",
+      "permanent": true
+    },
+    {
+      "source": "/diary4/",
+      "destination": "/posts/diary4/",
+      "permanent": true
+    },
+    {
+      "source": "/diary5/",
+      "destination": "/posts/diary5/",
+      "permanent": true
+    },
+    {
+      "source": "/diary6/",
+      "destination": "/posts/diary6/",
+      "permanent": true
+    },
+    {
+      "source": "/diary7/",
+      "destination": "/posts/diary7/",
+      "permanent": true
+    },
+    {
+      "source": "/diary8/",
+      "destination": "/posts/diary8/",
+      "permanent": true
+    },
+    {
+      "source": "/diary9/",
+      "destination": "/posts/diary9/",
+      "permanent": true
+    },
+    {
+      "source": "/docker/",
+      "destination": "/posts/docker/",
+      "permanent": true
+    },
+    {
+      "source": "/go-email/",
+      "destination": "/posts/go-email/",
+      "permanent": true
+    },
+    {
+      "source": "/go-user-demo/",
+      "destination": "/posts/go-user-demo/",
+      "permanent": true
+    },
+    {
+      "source": "/go-goroutine/",
+      "destination": "/posts/go-goroutine/",
+      "permanent": true
+    },
+    {
+      "source": "/go-hertz/",
+      "destination": "/posts/go-hertz/",
+      "permanent": true
+    },
+    {
+      "source": "/go-sql/",
+      "destination": "/posts/go-sql/",
+      "permanent": true
+    },
+    {
+      "source": "/go-redis/",
+      "destination": "/posts/go-redis/",
+      "permanent": true
+    },
+    {
+      "source": "/go-goroutine-pool/",
+      "destination": "/posts/go-goroutine-pool/",
+      "permanent": true
+    },
+    {
+      "source": "/go-APIgateway/",
+      "destination": "/posts/go-APIgateway/",
+      "permanent": true
+    },
+    {
+      "source": "/go-observability/",
+      "destination": "/posts/go-observability/",
+      "permanent": true
+    },
+    {
+      "source": "/go-basic/",
+      "destination": "/posts/go-basic/",
+      "permanent": true
+    },
+    {
+      "source": "/go-usually/",
+      "destination": "/posts/go-usually/",
+      "permanent": true
+    },
+    {
+      "source": "/go-kitex/",
+      "destination": "/posts/go-kitex/",
+      "permanent": true
+    },
+    {
+      "source": "/go-interface/",
+      "destination": "/posts/go-interface/",
+      "permanent": true
+    },
+    {
+      "source": "/go-DataConsistency/",
+      "destination": "/posts/go-DataConsistency/",
+      "permanent": true
+    },
+    {
+      "source": "/go-microservice-strategy/",
+      "destination": "/posts/go-microservice-strategy/",
+      "permanent": true
+    },
+    {
+      "source": "/go-test/",
+      "destination": "/posts/go-test/",
+      "permanent": true
+    },
+    {
+      "source": "/go-MQ/",
+      "destination": "/posts/go-MQ/",
+      "permanent": true
+    },
+    {
+      "source": "/go-gin/",
+      "destination": "/posts/go-gin/",
+      "permanent": true
+    },
+    {
+      "source": "/go-DDD/",
+      "destination": "/posts/go-DDD/",
+      "permanent": true
+    },
+    {
+      "source": "/go-jwt/",
+      "destination": "/posts/go-jwt/",
+      "permanent": true
+    },
+    {
+      "source": "/go-error/",
+      "destination": "/posts/go-error/",
+      "permanent": true
+    },
+    {
+      "source": "/go-Newfunc/",
+      "destination": "/posts/go-Newfunc/",
+      "permanent": true
+    },
+    {
+      "source": "/java-basic/",
+      "destination": "/posts/java-basic/",
+      "permanent": true
+    },
+    {
+      "source": "/java-class/",
+      "destination": "/posts/java-class/",
+      "permanent": true
+    },
+    {
+      "source": "/linux/",
+      "destination": "/posts/linux/",
+      "permanent": true
+    },
+    {
+      "source": "/go-minio/",
+      "destination": "/posts/go-minio/",
+      "permanent": true
+    },
+    {
+      "source": "/go-rag1/",
+      "destination": "/posts/go-rag1/",
+      "permanent": true
+    },
+    {
+      "source": "/term1/",
+      "destination": "/posts/term1/",
+      "permanent": true
+    },
+    {
+      "source": "/go-viper%26zap/",
+      "destination": "/posts/go-viper-zap/",
+      "permanent": true
+    },
+    {
+      "source": "/go-viper&zap/",
+      "destination": "/posts/go-viper-zap/",
+      "permanent": true
+    },
+    {
+      "source": "/text-basic-m/",
+      "destination": "/posts/text-basic-m/",
+      "permanent": true
+    },
+    {
+      "source": "/go-etcd/",
+      "destination": "/posts/go-etcd/",
+      "permanent": true
+    },
+    {
+      "source": "/claran-cloud-disk/",
+      "destination": "/posts/claran-cloud-disk/",
+      "permanent": true
+    },
+    {
+      "source": "/CO/",
+      "destination": "/posts/CO/",
+      "permanent": true
+    },
+    {
+      "source": "/go-Agent/",
+      "destination": "/posts/go-Agent/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/aim%E9%A1%B9%E7%9B%AE%E6%80%BB%E7%BB%93/",
+      "destination": "/posts/go-AIM/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/docker%E5%9F%BA%E7%A1%80/",
+      "destination": "/posts/docker/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-hertz%E6%A1%86%E6%9E%B6/",
+      "destination": "/posts/go-hertz/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%8D%8F%E7%A8%8B%E6%B1%A0/",
+      "destination": "/posts/go-goroutine-pool/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E5%92%8Capi%E7%BD%91%E5%85%B3/",
+      "destination": "/posts/go-APIgateway/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7/",
+      "destination": "/posts/go-observability/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%9F%BA%E7%A1%80%E8%AF%AD%E6%B3%95%E7%9F%A5%E8%AF%86/",
+      "destination": "/posts/go-basic/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%B8%B8%E7%94%A8%E5%8C%85%E4%B8%8E%E5%87%BD%E6%95%B0/",
+      "destination": "/posts/go-usually/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E5%BE%AE%E6%9C%8D%E5%8A%A1%E5%92%8Ckitex%E6%A1%86%E6%9E%B6/",
+      "destination": "/posts/go-kitex/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E6%8E%A5%E5%8F%A3%E4%B8%8E%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1/",
+      "destination": "/posts/go-interface/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E5%92%8C%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1/",
+      "destination": "/posts/go-DataConsistency/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E6%B5%8B%E8%AF%95%E5%8F%8A%E5%B8%B8%E8%A7%81%E5%BC%82%E5%B8%B8/",
+      "destination": "/posts/go-test/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97/",
+      "destination": "/posts/go-MQ/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E9%89%B4%E6%9D%83%E4%B8%8Ejwt/",
+      "destination": "/posts/go-jwt/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/go-%E9%94%99%E8%AF%AF%E7%9A%84%E5%A4%84%E7%90%86%E5%92%8C%E4%BC%A0%E9%80%92/",
+      "destination": "/posts/go-error/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/java-%E5%9F%BA%E7%A1%80%E8%AF%AD%E6%B3%95%E7%9F%A5%E8%AF%86/",
+      "destination": "/posts/java-basic/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/java-%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E4%B8%8E%E7%B1%BB/",
+      "destination": "/posts/java-class/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/linux%E4%B8%8Ewsl/",
+      "destination": "/posts/linux/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/rag%E8%AF%A6%E8%A7%A3/",
+      "destination": "/posts/go-rag1/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/term-1/",
+      "destination": "/posts/term1/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/%E5%9F%BA%E5%8C%BB%E6%9C%9F%E6%9C%AB%E5%A4%8D%E4%B9%A0/",
+      "destination": "/posts/text-basic-m/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E6%B3%A8%E5%86%8C%E4%B8%AD%E5%BF%83%E5%92%8Cetcd/",
+      "destination": "/posts/go-etcd/",
+      "permanent": true
+    },
+    {
+      "source": "/posts/%E8%B5%B0%E8%BF%9Bai/",
+      "destination": "/posts/go-Agent/",
+      "permanent": true
+    },
+    {
+      "source": "/albums",
+      "destination": "https://classic.claran-blog.work/albums/",
+      "permanent": true
+    },
+    {
+      "source": "/albums/",
+      "destination": "https://classic.claran-blog.work/albums/",
+      "permanent": true
+    },
+    {
+      "source": "/albums/:path*",
+      "destination": "https://classic.claran-blog.work/albums/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/anime",
+      "destination": "https://classic.claran-blog.work/anime/",
+      "permanent": true
+    },
+    {
+      "source": "/anime/",
+      "destination": "https://classic.claran-blog.work/anime/",
+      "permanent": true
+    },
+    {
+      "source": "/anime/:path*",
+      "destination": "https://classic.claran-blog.work/anime/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/diary",
+      "destination": "https://classic.claran-blog.work/diary/",
+      "permanent": true
+    },
+    {
+      "source": "/diary/",
+      "destination": "https://classic.claran-blog.work/diary/",
+      "permanent": true
+    },
+    {
+      "source": "/diary/:path*",
+      "destination": "https://classic.claran-blog.work/diary/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/devices",
+      "destination": "https://classic.claran-blog.work/devices/",
+      "permanent": true
+    },
+    {
+      "source": "/devices/",
+      "destination": "https://classic.claran-blog.work/devices/",
+      "permanent": true
+    },
+    {
+      "source": "/devices/:path*",
+      "destination": "https://classic.claran-blog.work/devices/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/projects",
+      "destination": "https://classic.claran-blog.work/projects/",
+      "permanent": true
+    },
+    {
+      "source": "/projects/",
+      "destination": "https://classic.claran-blog.work/projects/",
+      "permanent": true
+    },
+    {
+      "source": "/projects/:path*",
+      "destination": "https://classic.claran-blog.work/projects/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/about",
+      "destination": "https://classic.claran-blog.work/about/",
+      "permanent": true
+    },
+    {
+      "source": "/about/",
+      "destination": "https://classic.claran-blog.work/about/",
+      "permanent": true
+    },
+    {
+      "source": "/about/:path*",
+      "destination": "https://classic.claran-blog.work/about/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/friends",
+      "destination": "https://classic.claran-blog.work/friends/",
+      "permanent": true
+    },
+    {
+      "source": "/friends/",
+      "destination": "https://classic.claran-blog.work/friends/",
+      "permanent": true
+    },
+    {
+      "source": "/friends/:path*",
+      "destination": "https://classic.claran-blog.work/friends/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/links",
+      "destination": "https://classic.claran-blog.work/links/",
+      "permanent": true
+    },
+    {
+      "source": "/links/",
+      "destination": "https://classic.claran-blog.work/links/",
+      "permanent": true
+    },
+    {
+      "source": "/links/:path*",
+      "destination": "https://classic.claran-blog.work/links/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/archive/",
+      "destination": "/posts/",
+      "permanent": true
+    },
+    {
+      "source": "/atom.xml",
+      "destination": "/rss.xml",
+      "permanent": true
+    },
+    {
+      "source": "/atom/",
+      "destination": "/rss.xml",
+      "permanent": true
+    },
+    {
+      "source": "/rss/",
+      "destination": "/rss.xml",
+      "permanent": true
+    },
+    {
+      "source": "/sitemap-index.xml",
+      "destination": "/sitemap.xml",
+      "permanent": true
+    }
+  ]
+}
