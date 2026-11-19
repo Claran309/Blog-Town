@@ -171,6 +171,19 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const [season, setSeason] = useState<Season>('summer');
   const [automaticSeason, setAutomaticSeason] = useState(true);
   const [calendarSeason, setCalendarSeason] = useState<Season>('summer');
+  // Visitors can switch how short notes appear. The choice is remembered so
+  // the town keeps their preferred shape on the next visit.
+  const [diaryMode, setDiaryMode] = useState<'district' | 'single'>(siteConfig.diaryLayout);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('town:diary-layout');
+      if (saved === 'district' || saved === 'single') setDiaryMode(saved);
+    } catch { /* Private mode: keep the configured default. */ }
+  }, []);
+  const chooseDiaryMode = (mode: 'district' | 'single') => {
+    setDiaryMode(mode);
+    try { window.localStorage.setItem('town:diary-layout', mode); } catch { /* ignore */ }
+  };
   useEffect(() => {
     const sync = () => {
       const current=getSeasonForDate();
@@ -623,14 +636,19 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
               <option value="auto">当季 · {SEASON_PROFILES[calendarSeason].label}</option>
               {SEASON_ORDER.map(value=><option key={value} value={value}>{SEASON_PROFILES[value].label}季</option>)}
             </select>{icon('chevron')}
-          </label></div>
+          </label>
+          {surface === 'town' && <div className="diary-mode-switch" role="group" aria-label="短日记在镇上的显示方式">
+            <span className="visually-hidden">短日记布局</span>
+            <button type="button" className={diaryMode === 'district' ? 'is-active' : ''} aria-pressed={diaryMode === 'district'} title="每条日记一块公告栏，组成独立区域" onClick={() => chooseDiaryMode('district')}>街区</button>
+            <button type="button" className={diaryMode === 'single' ? 'is-active' : ''} aria-pressed={diaryMode === 'single'} title="风车旁一块布告栏，点击进入日记页" onClick={() => chooseDiaryMode('single')}>单板</button>
+          </div>}</div>
         </header>
 
         {surface === 'archive' && <ArchiveHeading postCount={posts.length} />}
         <div className="main-scroll" ref={mainSurfaceRef}>
         {surface === 'town' && <section className="town-home">
           <h1 className="visually-hidden">{siteConfig.title} — {siteConfig.tagline}</h1>
-          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
+          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} diaryMode={diaryMode} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
           <p className="mobile-town-hint">点击建筑预览，再次点击或选择「阅读文章」打开；单指任意方向拖动小镇，双指捏合缩放。在小镇外滑动可浏览页面。</p>
           <TownStatStrip stats={siteStats} totals={siteTotals} onAbout={() => navigate('about')} />
           <div className="town-mobile-support">

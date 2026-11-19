@@ -137,6 +137,8 @@ export interface TownDiaryDistrict {
   x: number;
   z: number;
   boards: TownDiaryBoard[];
+  /** The single civic board used by the compact layout. */
+  singleBoard: TownDiaryBoard;
   /** Bounds that keep article lots and props out of the district. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -274,34 +276,25 @@ const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning
 /** One civic notice board beside the windmill, used in `single` mode. */
 export const DIARY_SINGLE_BOARD = { x: -1.8, z: 6.2, width: 1.62, depth: 0.70 } as const;
 
-export const createTownDiaryDistrict = (entryIds: string[], mode: DiaryLayoutMode = 'district'): TownDiaryDistrict | undefined => {
+const DIARY_SINGLE: TownDiaryBoard = {
+  id: 'diary-all',
+  x: DIARY_SINGLE_BOARD.x,
+  z: DIARY_SINGLE_BOARD.z,
+  width: DIARY_SINGLE_BOARD.width,
+  depth: DIARY_SINGLE_BOARD.depth,
+  // Face the plaza's south approach, matching the surrounding houses.
+  rotation: 0,
+  accent: 0,
+  form: 'board',
+};
+
+/**
+ * Both diary layouts are always present in the data. The scene renders one of
+ * them based on the visitor's choice, so switching never has to rebuild the
+ * town or move an article building.
+ */
+export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict | undefined => {
   if (!entryIds.length) return undefined;
-  if (mode === 'single') {
-    const board: TownDiaryBoard = {
-      id: 'diary-all',
-      x: DIARY_SINGLE_BOARD.x,
-      z: DIARY_SINGLE_BOARD.z,
-      width: DIARY_SINGLE_BOARD.width,
-      depth: DIARY_SINGLE_BOARD.depth,
-      // Face the plaza's south approach, matching the surrounding houses.
-      rotation: 0,
-      accent: 0,
-      form: 'board',
-    };
-    return {
-      id: 'diary-district',
-      kind: 'diary',
-      x: board.x,
-      z: board.z,
-      boards: [board],
-      bounds: {
-        minX: board.x - board.width / 2 - 0.6,
-        maxX: board.x + board.width / 2 + 0.6,
-        minZ: board.z - board.depth / 2 - 0.6,
-        maxZ: board.z + board.depth / 2 + 0.6,
-      },
-    };
-  }
   const boards: TownDiaryBoard[] = entryIds.map((id, index) => {
     const column = index % DIARY_COLUMNS;
     const row = Math.floor(index / DIARY_COLUMNS);
@@ -320,8 +313,8 @@ export const createTownDiaryDistrict = (entryIds: string[], mode: DiaryLayoutMod
       form: DIARY_FORMS[index % DIARY_FORMS.length],
     };
   });
-  // The reservation covers the whole grid so article lots and decoration never
-  // squeeze between boards, and the camera can frame the district as one place.
+  // The reservation covers both layouts so article lots and decoration never
+  // squeeze between boards, whichever one is on screen.
   const halfW = ((DIARY_COLUMNS - 1) / 2) * DIARY_STEP_X + DIARY_BOARD_WIDTH / 2;
   const halfD = ((DIARY_ROWS - 1) / 2) * DIARY_STEP_Z + DIARY_BOARD_DEPTH / 2;
   return {
@@ -330,11 +323,12 @@ export const createTownDiaryDistrict = (entryIds: string[], mode: DiaryLayoutMod
     x: DIARY_CENTER.x,
     z: DIARY_CENTER.z,
     boards,
+    singleBoard: DIARY_SINGLE,
     bounds: {
-      minX: DIARY_CENTER.x - halfW - 0.6,
-      maxX: DIARY_CENTER.x + halfW + 0.6,
-      minZ: DIARY_CENTER.z - halfD - 0.6,
-      maxZ: DIARY_CENTER.z + halfD + 0.6,
+      minX: Math.min(DIARY_CENTER.x - halfW, DIARY_SINGLE.x - DIARY_SINGLE.width / 2) - 0.6,
+      maxX: Math.max(DIARY_CENTER.x + halfW, DIARY_SINGLE.x + DIARY_SINGLE.width / 2) + 0.6,
+      minZ: Math.min(DIARY_CENTER.z - halfD, DIARY_SINGLE.z - DIARY_SINGLE.depth / 2) - 0.6,
+      maxZ: Math.max(DIARY_CENTER.z + halfD, DIARY_SINGLE.z + DIARY_SINGLE.depth / 2) + 0.6,
     },
   };
 };
@@ -721,11 +715,10 @@ export const createTownLayout = (
   posts: LayoutPost[] = [],
   friends: LayoutFriend[] = [],
   diary: LayoutDiaryEntry[] = [],
-  diaryMode: DiaryLayoutMode = 'district',
 ): TownLayout => {
   const groups = groupPosts(posts);
   const hamlet = createTownHamlet(friends.map((friend) => friend.id));
-  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id), diaryMode);
+  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id));
   const presets = stableArticlePlots[seed] ?? {};
   const orderedGroups = [...groups].sort((a, b) => {
     const aPreset = presets[groupKey(a)];

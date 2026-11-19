@@ -216,16 +216,15 @@ for (const notice of withDiary.diary.boards) {
 const noDiary = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, []);
 assert(!noDiary.diary, 'diary district must not exist without short notes');
 
-// `single` mode keeps exactly one civic board that opens the diary page.
-const singleDiary = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, diaryIds.map((id) => ({ id })), 'single');
-assert(singleDiary.diary, 'single diary mode must still create a board');
-assert(singleDiary.diary.boards.length === 1, 'single diary mode must place exactly one board');
-assert(singleDiary.diary.boards[0].id === 'diary-all', 'single diary board must use the summary id');
-for (const plot of singleDiary.plots) {
-  assert(!collides(plot, singleDiary.diary.boards[0]), 'single diary board collides with an article building');
+// Both layouts ship together: the compact board is always available so the
+// visitor can switch without a rebuild.
+assert(withDiary.diary.singleBoard, 'compact diary board must always exist');
+assert(withDiary.diary.singleBoard.id === 'diary-all', 'compact diary board must use the summary id');
+for (const plot of withDiary.plots) {
+  assert(!collides(plot, withDiary.diary.singleBoard), 'compact diary board collides with an article building');
 }
 // Boards are street furniture: they face the town, never the camera.
-for (const notice of withDiary.diary.boards) {
+for (const notice of [...withDiary.diary.boards, withDiary.diary.singleBoard]) {
   assert(notice.rotation === 0, `diary board ${notice.id} must keep the town's axis`);
 }
   for (const hut of withFriends.hamlet.huts) {

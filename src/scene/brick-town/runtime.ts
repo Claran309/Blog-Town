@@ -28,7 +28,7 @@ import type { TownLayout } from '../../data/town-layout';
 import type { TownSceneProps } from './types';
 import { clampToPanBounds, getCameraPanBounds, getDragPanDelta } from './view';
 
-export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
+export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'diaryMode'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
 export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onHoverFriend'|'onHoverDiary'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onResolveFriendAnchor'|'onResolveDiaryAnchor'|'onSelectPost'|'onOpenFeature'|'onSelectFriend'|'onSelectDiary'|'onTownExplored'> & {
   onResolveNewPostAnchors?: (frame: PostNoticeFrame) => void;
 };
@@ -130,9 +130,33 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   const friendHuts=(layout.hamlet?.huts??[]).map(hut=>buildFriendHut(scene,hut,mobile));
   const friendMeshes=friendHuts.flatMap(hut=>hut.meshes);
   const friendById=new Map(friendHuts.map(hut=>[hut.hut.id,hut]));
-  const diaryBoards=(layout.diary?.boards??[]).map(board=>buildDiaryBoard(scene,board,mobile));
-  const diaryMeshes=diaryBoards.flatMap(board=>board.meshes);
-  const diaryById=new Map(diaryBoards.map(board=>[board.board.id,board]));
+  // Diary furniture is rebuilt when the visitor switches between the district
+  // and the single-board layout, so both live behind one mutable holder.
+  let diaryBoards: ReturnType<typeof buildDiaryBoard>[] = [];
+  let diaryMeshes: ReturnType<typeof buildDiaryBoard>['meshes'] = [];
+  let diaryById = new Map<string, ReturnType<typeof buildDiaryBoard>>();
+  let diaryMode: 'district' | 'single' = initial.diaryMode ?? 'district';
+  const buildDiaryFurniture = () => {
+    for (const board of diaryBoards) for (const mesh of board.meshes) {
+      highlights?.removeMesh(mesh);
+      glow?.removeExcludedMesh(mesh);
+      shadows.removeShadowCaster(mesh);
+    }
+    for (const board of diaryBoards) board.root.dispose(false, false);
+    const source = layout.diary
+      ? (diaryMode === 'single' ? [layout.diary.singleBoard] : layout.diary.boards)
+      : [];
+    diaryBoards = source.map((board) => buildDiaryBoard(scene, board, mobile));
+    diaryMeshes = diaryBoards.flatMap((board) => board.meshes);
+    diaryById = new Map(diaryBoards.map((board) => [board.board.id, board]));
+    for (const mesh of diaryMeshes) {
+      if (!mesh.metadata.glass) glow?.addExcludedMesh(mesh);
+      shadows.addShadowCaster(mesh);
+      mesh.computeWorldMatrix(true);
+      mesh.freezeWorldMatrix();
+    }
+    shadows.getShadowMap()?.resetRefreshCounter();
+  };
   const postNotices=createPostNoticeProjector(scene,camera,houses);
   const seasons=createSeasonController({scene,world,mobile,seed:layout.seed,surfaces:[...world.snowSurfaces,...houses.flatMap(h=>h.snowSurfaces)]});
   const weather=createWeatherController(scene,layout.seed,mobile);
@@ -141,12 +165,15 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   // Terrain plates cannot cast a useful shadow onto themselves. Excluding that
   // multi-million-instance surface cuts most shadow-map geometry while houses,
   // trees, props and citizens retain their natural shadows.
-  for(const m of [...world.shadowCasters,...houseMeshes,...featureMeshes,...friendMeshes,...diaryMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
-  for(const m of [...world.meshes,...houseMeshes,...featureMeshes,...friendMeshes,...diaryMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
+  for(const m of [...world.shadowCasters,...houseMeshes,...featureMeshes,...friendMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
+  for(const m of [...world.meshes,...houseMeshes,...featureMeshes,...friendMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
   let glow:import('@babylonjs/core/Layers/glowLayer.js').GlowLayer|undefined;
   let highlights:import('@babylonjs/core/Layers/highlightLayer.js').HighlightLayer|undefined;
   let fxaa:import('@babylonjs/core/PostProcesses/fxaaPostProcess.js').FxaaPostProcess|undefined;
   let effectsReady=false;
+  // The diary builder touches the highlight/glow layers, so it must run after
+  // those handles are declared.
+  buildDiaryFurniture();
   const initVisualEffects=async()=>{
     if(disposed||effectsReady)return;
     const [layers,highlightModule,fxaaModule]=await Promise.all([
@@ -237,6 +264,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   function update(next:SceneState) {
     const seasonChanged=next.season!==state.season;
     const rebuildPeople=next.colorMode!==state.colorMode;
+    if(next.diaryMode && next.diaryMode!==diaryMode){diaryMode=next.diaryMode;buildDiaryFurniture();highlightSignature='';}
     const environmentChanged=rebuildPeople||seasonChanged||next.reducedMotion!==state.reducedMotion;
     if(seasonChanged) {
       for(const mesh of seasons.meshes){highlights?.removeMesh(mesh);glow?.removeExcludedMesh(mesh);shadows.removeShadowCaster(mesh);}
