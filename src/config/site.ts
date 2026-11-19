@@ -25,6 +25,12 @@ interface SiteConfig {
   language: string;
   townSeed: string;
   /**
+   * How short notes appear in the town.
+   * - `district`: one notice board per note, laid out as its own block.
+   * - `single`: one civic board beside the windmill that opens the diary page.
+   */
+  diaryLayout: 'district' | 'single';
+  /**
    * First day the blog went live, inherited from the classic site so the
    * "running for N days" figure does not reset on the new domain.
    */
@@ -49,6 +55,7 @@ export const siteConfig: SiteConfig = {
   logo: '/assets/profile/logo.webp',
   language: 'zh-CN', // 必填：HTML lang 值，例如 zh-CN、en-US。
   townSeed: 'claran-town-v1',
+  diaryLayout: 'district',
   launchDate: '2025-10-12',
   profile: {
     name: 'Claran',

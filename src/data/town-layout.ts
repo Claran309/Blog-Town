@@ -123,6 +123,12 @@ export interface TownDiaryBoard {
   rotation: number;
   /** Stable accent index so a board keeps its colour across builds. */
   accent: number;
+  /**
+   * Which piece of street furniture this board uses. Varying the silhouette
+   * keeps a district of nine boards from looking like a row of identical
+   * official notices.
+   */
+  form: 'board' | 'cork' | 'chalk' | 'awning';
 }
 
 export interface TownDiaryDistrict {
@@ -134,6 +140,14 @@ export interface TownDiaryDistrict {
   /** Bounds that keep article lots and props out of the district. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
+
+/**
+ * How the diary appears in the town. `district` gives every note its own board;
+ * `single` keeps one civic notice board beside the windmill that opens the
+ * diary page. Both are supported so the layout can be switched without
+ * rewriting the scene.
+ */
+export type DiaryLayoutMode = 'district' | 'single';
 
 export interface TownLayout {
   seed: string;
@@ -245,11 +259,9 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
   };
 };
 
-// The diary district sits on the open west field, separated from the article
-// streets by a short walk. Boards face the same camera angle as the town so
-// their pinned notes stay readable from the default framing.
-// Inside the default diorama framing (roughly x ±20, z ±16) but on the quiet
-// north-west green, away from the article streets that would hide the boards.
+// Diary boards are street furniture, not signage: each one keeps the town's
+// axes (facing the plaza) instead of turning toward the camera, and the four
+// silhouettes keep a district from reading as a row of identical notices.
 const DIARY_CENTER = { x: 13.5, z: -5.0 };
 const DIARY_COLUMNS = 3;
 const DIARY_ROWS = 3;
@@ -257,10 +269,39 @@ const DIARY_STEP_X = 2.30;
 const DIARY_STEP_Z = 1.95;
 const DIARY_BOARD_WIDTH = 1.45;
 const DIARY_BOARD_DEPTH = 0.66;
-const DIARY_ROTATION = Math.PI / 2 - Math.PI * 0.68;
+const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
 
-export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict | undefined => {
+/** One civic notice board beside the windmill, used in `single` mode. */
+export const DIARY_SINGLE_BOARD = { x: -1.8, z: 6.2, width: 1.62, depth: 0.70 } as const;
+
+export const createTownDiaryDistrict = (entryIds: string[], mode: DiaryLayoutMode = 'district'): TownDiaryDistrict | undefined => {
   if (!entryIds.length) return undefined;
+  if (mode === 'single') {
+    const board: TownDiaryBoard = {
+      id: 'diary-all',
+      x: DIARY_SINGLE_BOARD.x,
+      z: DIARY_SINGLE_BOARD.z,
+      width: DIARY_SINGLE_BOARD.width,
+      depth: DIARY_SINGLE_BOARD.depth,
+      // Face the plaza's south approach, matching the surrounding houses.
+      rotation: 0,
+      accent: 0,
+      form: 'board',
+    };
+    return {
+      id: 'diary-district',
+      kind: 'diary',
+      x: board.x,
+      z: board.z,
+      boards: [board],
+      bounds: {
+        minX: board.x - board.width / 2 - 0.6,
+        maxX: board.x + board.width / 2 + 0.6,
+        minZ: board.z - board.depth / 2 - 0.6,
+        maxZ: board.z + board.depth / 2 + 0.6,
+      },
+    };
+  }
   const boards: TownDiaryBoard[] = entryIds.map((id, index) => {
     const column = index % DIARY_COLUMNS;
     const row = Math.floor(index / DIARY_COLUMNS);
@@ -272,8 +313,11 @@ export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict |
       z: Number(z.toFixed(3)),
       width: DIARY_BOARD_WIDTH,
       depth: DIARY_BOARD_DEPTH,
-      rotation: DIARY_ROTATION,
+      // Keep the town's axes. Houses all face +Z (the plaza approach), so the
+      // boards use the same rotation instead of turning toward the camera.
+      rotation: 0,
       accent: index % 4,
+      form: DIARY_FORMS[index % DIARY_FORMS.length],
     };
   });
   // The reservation covers the whole grid so article lots and decoration never
@@ -677,10 +721,11 @@ export const createTownLayout = (
   posts: LayoutPost[] = [],
   friends: LayoutFriend[] = [],
   diary: LayoutDiaryEntry[] = [],
+  diaryMode: DiaryLayoutMode = 'district',
 ): TownLayout => {
   const groups = groupPosts(posts);
   const hamlet = createTownHamlet(friends.map((friend) => friend.id));
-  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id));
+  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id), diaryMode);
   const presets = stableArticlePlots[seed] ?? {};
   const orderedGroups = [...groups].sort((a, b) => {
     const aPreset = presets[groupKey(a)];

@@ -81,7 +81,7 @@ const buildSiteData = async () => {
     posts,
     contents,
     searchIndex,
-    layout: createTownLayout(siteConfig.townSeed, posts, friendLinks, diaryEntries),
+    layout: createTownLayout(siteConfig.townSeed, posts, friendLinks, diaryEntries, siteConfig.diaryLayout),
   };
 };
 

@@ -38,37 +38,11 @@ export function buildDiaryBoard(scene: Scene, board: TownDiaryBoard, mobile = fa
   // Two-step footing so the board does not float on the plaza paving.
   kit.brick(0, 0, 0, 3, 2, C.roadLight, H / 3, false, id);
   kit.brick(0, H / 3, 0, 2, 1, C.sand, H * 0.6, true, id);
-
   const postTop = H / 3 + H * 0.6;
-  for (const side of [-1, 1]) {
-    kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
-    // Small finial caps keep the posts from ending as blunt sticks.
-    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, C.navy, 0, id);
-  }
 
-  // Board panel, with a raised ivory face so the pins read against a darker rim.
-  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, C.navy, 0, id);
-  kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.ivory, 0, id);
+  const anchorY = drawBoardForm(kit, board, id, postTop);
 
-  // Pinned notes: slightly rotated scraps in the town's accent colours, each
-  // with a coral pin head. Larger than a literal A6 scrap so they stay legible
-  // at the diorama's default zoom.
-  const notes = [
-    { x: -0.27, y: 0.11, roll: -0.15, w: 0.34, h: 0.24, color: C.yellow },
-    { x: 0.08, y: 0.15, roll: 0.08, w: 0.30, h: 0.28, color: C.ivory },
-    { x: 0.31, y: -0.01, roll: -0.06, w: 0.26, h: 0.22, color: C.coral },
-    { x: -0.04, y: -0.13, roll: 0.04, w: 0.38, h: 0.18, color: C.teal },
-  ];
-  for (const note of notes) {
-    kit.rolledBox(note.x, postTop + 1.34 + note.y, 0.08, note.w, note.h, 0.012, note.roll, note.color, 0, id);
-    kit.box(note.x, postTop + 1.34 + note.y + note.h / 2 - 0.025, 0.09, 0.05, 0.05, 0.02, C.red, 0, id);
-  }
-
-  // A tiny shingle hood sheds rain off the board.
-  kit.box(0, postTop + 1.74, 0, 1.24, 0.06, 0.24, C.coral, 0, id);
-  kit.box(0, postTop + 1.78, 0, 1.14, 0.04, 0.18, C.red, 0, id);
-
-  // Two small planters anchor the board to the ground.
+  // Two small planters anchor every board to the ground.
   for (const side of [-1, 1]) {
     kit.brick(side * 0.60, H / 3, 0.14, 1, 1, C.brown, H * 0.5, false, id);
     kit.cylinder(side * 0.60, H / 3 + H * 0.5 + 0.06, 0.14, 0.13, 0.10, C.leaf, id);
@@ -78,7 +52,97 @@ export function buildDiaryBoard(scene: Scene, board: TownDiaryBoard, mobile = fa
   for (const mesh of meshes) {
     mesh.metadata = { ...mesh.metadata, diaryId: board.id };
   }
-  return { root, meshes, board, anchorY: postTop + 2.05 };
+  return { root, meshes, board, anchorY };
+}
+
+/**
+ * Four silhouettes so a district of notes reads as a lived-in street rather
+ * than a row of official notices. Each variant keeps the same footprint so the
+ * layout stays stable when the form changes.
+ */
+function drawBoardForm(kit: BrickKit, board: TownDiaryBoard, id: string, postTop: number) {
+  switch (board.form) {
+    case 'cork': return drawCorkBoard(kit, id, postTop);
+    case 'chalk': return drawChalkboard(kit, id, postTop);
+    case 'awning': return drawAwningBoard(kit, id, postTop);
+    default: return drawClassicBoard(kit, id, postTop);
+  }
+}
+
+/** Wooden civic board with a shingled hood. */
+function drawClassicBoard(kit: BrickKit, id: string, postTop: number) {
+  for (const side of [-1, 1]) {
+    kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
+    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, C.navy, 0, id);
+  }
+  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, C.navy, 0, id);
+  kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.ivory, 0, id);
+  pinnedNotes(kit, id, postTop + 1.34, [
+    { x: -0.27, y: 0.11, roll: -0.15, w: 0.34, h: 0.24, color: C.yellow },
+    { x: 0.08, y: 0.15, roll: 0.08, w: 0.30, h: 0.28, color: C.ivory },
+    { x: 0.31, y: -0.01, roll: -0.06, w: 0.26, h: 0.22, color: C.coral },
+    { x: -0.04, y: -0.13, roll: 0.04, w: 0.38, h: 0.18, color: C.teal },
+  ]);
+  kit.box(0, postTop + 1.74, 0, 1.24, 0.06, 0.24, C.coral, 0, id);
+  kit.box(0, postTop + 1.78, 0, 1.14, 0.04, 0.18, C.red, 0, id);
+  return postTop + 2.05;
+}
+
+/** Cork pin-board: warm board face, no hood, freer note placement. */
+function drawCorkBoard(kit: BrickKit, id: string, postTop: number) {
+  for (const side of [-1, 1]) {
+    kit.box(side * 0.50, postTop + 0.78, 0, 0.09, 1.62, 0.09, C.tan, 0, id);
+  }
+  kit.box(0, postTop + 1.20, 0, 1.14, 0.76, 0.06, C.tan, 0, id);
+  kit.box(0, postTop + 1.20, 0.04, 1.06, 0.68, 0.02, '#c8a06a', 0, id);
+  pinnedNotes(kit, id, postTop + 1.20, [
+    { x: -0.30, y: 0.16, roll: -0.22, w: 0.26, h: 0.22, color: C.ivory },
+    { x: 0.02, y: 0.19, roll: 0.12, w: 0.22, h: 0.26, color: C.cream },
+    { x: 0.34, y: 0.10, roll: -0.05, w: 0.20, h: 0.20, color: C.yellow },
+    { x: -0.16, y: -0.10, roll: 0.09, w: 0.24, h: 0.20, color: C.coral },
+    { x: 0.22, y: -0.13, roll: -0.11, w: 0.28, h: 0.18, color: C.ivory },
+  ]);
+  return postTop + 1.70;
+}
+
+/** Chalkboard on a single post, with a little tray of chalk. */
+function drawChalkboard(kit: BrickKit, id: string, postTop: number) {
+  kit.box(0, postTop + 0.62, 0, 0.12, 1.30, 0.12, C.brown, 0, id);
+  kit.box(0, postTop + 1.28, 0, 0.96, 0.68, 0.07, C.brown, 0, id);
+  kit.box(0, postTop + 1.28, 0.05, 0.88, 0.60, 0.03, '#33453f', 0, id);
+  // Chalk marks: short ivory strokes rather than pinned paper.
+  for (const [x, y, w] of [[-0.20, 0.16, 0.34], [0.02, 0.05, 0.42], [0.16, -0.06, 0.30], [-0.10, -0.16, 0.26]]) {
+    kit.box(x, postTop + 1.28 + y, 0.075, w, 0.035, 0.012, C.ivory, 0, id);
+  }
+  kit.box(0, postTop + 0.96, 0.08, 0.52, 0.035, 0.08, C.sand, 0, id);
+  return postTop + 1.62;
+}
+
+/** Board tucked under a striped awning, like a shopfront notice. */
+function drawAwningBoard(kit: BrickKit, id: string, postTop: number) {
+  for (const side of [-1, 1]) {
+    kit.box(side * 0.46, postTop + 0.72, 0, 0.10, 1.48, 0.10, C.navy, 0, id);
+  }
+  kit.box(0, postTop + 1.10, 0, 1.08, 0.64, 0.07, C.navy, 0, id);
+  kit.box(0, postTop + 1.10, 0.045, 1.00, 0.56, 0.03, C.cream, 0, id);
+  pinnedNotes(kit, id, postTop + 1.10, [
+    { x: -0.24, y: 0.08, roll: -0.08, w: 0.32, h: 0.26, color: C.ivory },
+    { x: 0.16, y: 0.12, roll: 0.06, w: 0.28, h: 0.22, color: C.yellow },
+    { x: 0.00, y: -0.14, roll: -0.03, w: 0.36, h: 0.18, color: C.ivory },
+  ]);
+  // Striped awning: alternating coral and ivory slats.
+  for (let index = 0; index < 6; index++) {
+    kit.box(-0.45 + index * 0.18, postTop + 1.52, 0.10, 0.17, 0.05, 0.34, index % 2 ? C.ivory : C.coral, 0, id);
+  }
+  kit.box(0, postTop + 1.46, 0.26, 1.10, 0.04, 0.06, C.red, 0, id);
+  return postTop + 1.86;
+}
+
+function pinnedNotes(kit: BrickKit, id: string, centerY: number, notes: { x: number; y: number; roll: number; w: number; h: number; color: string }[]) {
+  for (const note of notes) {
+    kit.rolledBox(note.x, centerY + note.y, 0.08, note.w, note.h, 0.012, note.roll, note.color, 0, id);
+    kit.box(note.x, centerY + note.y + note.h / 2 - 0.025, 0.09, 0.05, 0.05, 0.02, C.red, 0, id);
+  }
 }
 
 /**

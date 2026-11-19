@@ -58,11 +58,12 @@ type TownStageProps = TownSceneProps & {
   friendAnchor?: SceneAnchor;
   hoveredDiary?: DiaryEntry;
   diaryAnchor?: SceneAnchor;
+  diarySingle?: boolean;
   touchPost?: TownPostSummary;
   onCloseTouchPreview: () => void;
 };
 
-function TownStage({ hoveredPost, hoverAnchor, hoveredFeature, featureAnchor, selectedFriend, friendAnchor, hoveredDiary, diaryAnchor, touchPost, onCloseTouchPreview, ...sceneProps }: TownStageProps) {
+function TownStage({ hoveredPost, hoverAnchor, hoveredFeature, featureAnchor, selectedFriend, friendAnchor, hoveredDiary, diaryAnchor, diarySingle, touchPost, onCloseTouchPreview, ...sceneProps }: TownStageProps) {
   const [settled, setSettled] = useState(false);
   return <div className="town-stage-wrap">
     <Suspense fallback={null}>
@@ -77,7 +78,7 @@ function TownStage({ hoveredPost, hoverAnchor, hoveredFeature, featureAnchor, se
     <TownTooltip post={hoveredPost} anchor={hoverAnchor} />
     <FeatureTooltip feature={hoveredFeature} anchor={featureAnchor} />
     <FriendTag friend={selectedFriend} anchor={friendAnchor} />
-    <DiaryTag entry={hoveredDiary} anchor={diaryAnchor} />
+    <DiaryTag entry={hoveredDiary} anchor={diaryAnchor} single={diarySingle} count={diaryEntries.length} />
     {touchPost && <div className="town-touch-preview" role="region" aria-label="建筑文章预览">
       <button className="touch-preview-close" aria-label="关闭建筑预览" onClick={onCloseTouchPreview}>{icon('close')}</button>
       <div className="tooltip-meta"><span>{touchPost.category}</span><span>{touchPost.readingTime} min</span></div>
@@ -290,6 +291,9 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   // neighbour keeps its card pinned to the hut the camera travelled to.
   const activeFriend = hoveredFriend ?? selectedFriend;
   const activeDiaryEntry = hoveredDiaryId ? diaryEntries.find((entry) => entry.id === hoveredDiaryId) : undefined;
+  // `single` mode uses one board for the whole diary, so its preview is a
+  // summary card rather than a specific note.
+  const diaryBoardSummary = hoveredDiaryId === 'diary-all';
   const touchPost = touchPostId ? postMap.get(touchPostId) : undefined;
   const sidebarModal = isMobile && mobileSidebarOpen;
   const highlightCategory = previewCategory ?? activeCategory;
@@ -522,7 +526,9 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
     if (hoveredDiaryId === id) setDiaryAnchor(anchor);
   };
   const openDiaryEntry = (id: string) => {
-    // Each board is one note, so selecting it jumps straight to that entry.
+    // In `single` mode one civic board opens the diary page; in `district`
+    // mode each board is one note and jumps straight to that entry.
+    if (id === 'diary-all') { navigate('diary'); return; }
     setFocusedDiaryId(id);
     window.location.assign(`/diary/#${id}`);
   };
@@ -570,8 +576,6 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
             <div className="sidebar-rule" />
             <nav className="desktop-sidebar-nav" aria-label="侧边栏入口">
               <a className={`nav-item ${surface === 'town' && sidebarPanel === 'profile' ? 'is-active' : ''}`} href="/" onClick={(event) => handleInternalClick(event, () => { setSidebarPanel('profile'); setSidebarCategory(undefined); setSidebarTag(undefined); navigate('town'); })}>{icon('home')}<span>名片</span></a>
-              <a className={`nav-item ${surface === 'about' ? 'is-active' : ''}`} href="/about/" onClick={(event) => handleInternalClick(event, () => navigate('about'))}>{icon('about')}<span>关于</span></a>
-              <a className={`nav-item ${surface === 'diary' ? 'is-active' : ''}`} href="/diary/" onClick={(event) => handleInternalClick(event, () => navigate('diary'))}>{icon('flower')}<span>短日记</span><span className="nav-count">{String(diaryEntries.length).padStart(2, '0')}</span></a>
               <button className={`nav-item ${sidebarPanel === 'list' ? 'is-active' : ''}`} onClick={() => { setSidebarPanel('list'); }}>{icon('archive')}<span>列表</span><span className="nav-count">{String(posts.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'categories' || sidebarPanel === 'category-posts' ? 'is-active' : ''}`} onClick={() => openExplore('categories')}>{icon('category')}<span>分类</span><span className="nav-count">{String(categories.length).padStart(2, '0')}</span></button>
               <button className={`nav-item ${sidebarPanel === 'tags' || sidebarPanel === 'tag-posts' ? 'is-active' : ''}`} onClick={() => openExplore('tags')}>{icon('tag')}<span>标签</span><span className="nav-count">{String(tags.length).padStart(2, '0')}</span></button>
@@ -626,7 +630,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
         <div className="main-scroll" ref={mainSurfaceRef}>
         {surface === 'town' && <section className="town-home">
           <h1 className="visually-hidden">{siteConfig.title} — {siteConfig.tagline}</h1>
-          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
+          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
           <p className="mobile-town-hint">点击建筑预览，再次点击或选择「阅读文章」打开；单指任意方向拖动小镇，双指捏合缩放。在小镇外滑动可浏览页面。</p>
           <TownStatStrip stats={siteStats} totals={siteTotals} onAbout={() => navigate('about')} />
           <div className="town-mobile-support">
@@ -1022,13 +1026,23 @@ const ABOUT_SECTIONS = [
   },
 ];
 
-function DiaryTag({ entry, anchor }: { entry?: DiaryEntry; anchor?: SceneAnchor }) {
-  if (!entry || !anchor) return null;
+function DiaryTag({ entry, anchor, single, count }: { entry?: DiaryEntry; anchor?: SceneAnchor; single?: boolean; count: number }) {
+  if (!anchor) return null;
+  if (!entry && !single) return null;
   const flip = anchor.x + 236 + 15 > window.innerWidth;
   return <div className={`town-tooltip town-diary-tag ${flip ? 'is-flipped' : ''}`} style={{ left: anchor.x, top: anchor.y }}>
-    <div className="tooltip-meta"><span>{formatDate(entry.date)}</span><span>{entry.mood ?? '短日记'}</span></div>
-    <strong>{entry.content}</strong>
-    <a href={`/diary/#${entry.id}`} onClick={(event) => handleInternalClick(event, () => window.location.assign(`/diary/#${entry.id}`))}>打开这条日记 {icon('arrow')}</a>
+    {single
+      ? <>
+        <div className="tooltip-meta"><span>NOTICE BOARD</span><span>{String(count).padStart(2, '0')} NOTES</span></div>
+        <strong>小镇布告栏</strong>
+        <p>几句话记录当下。点开看看最近写了什么。</p>
+        <a href="/diary/" onClick={(event) => handleInternalClick(event, () => window.location.assign('/diary/'))}>进入短日记 {icon('arrow')}</a>
+      </>
+      : <>
+        <div className="tooltip-meta"><span>{formatDate(entry!.date)}</span><span>{entry!.mood ?? '短日记'}</span></div>
+        <strong>{entry!.content}</strong>
+        <a href={`/diary/#${entry!.id}`} onClick={(event) => handleInternalClick(event, () => window.location.assign(`/diary/#${entry!.id}`))}>打开这条日记 {icon('arrow')}</a>
+      </>}
   </div>;
 }
 
