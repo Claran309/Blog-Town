@@ -30,13 +30,12 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   // out of the town's decoration field instead of being sprinkled over.
   const inHamletGreen = (p: Point, clearance = 0) => !!hamlet && Math.hypot(p.x - hamlet.x, p.z - hamlet.z) < hamlet.radius + clearance;
   const inHamletLane = (p: Point, clearance = 0) => !!hamlet && createPathProximity(samplePath(hamlet.path, 12))(p, 0.62 + clearance);
-  // The diary district keeps its own clear green so the boards stay readable
-  // instead of being buried under the town's decorative trees.
-  const inDiaryGreen = (p: Point, clearance = 0) => !!diary
-    && p.x > diary.bounds.minX - clearance && p.x < diary.bounds.maxX + clearance
-    && p.z > diary.bounds.minZ - clearance && p.z < diary.bounds.maxZ + clearance;
+  // The diary quarter mirrors the friend hamlet: a clear green with its own
+  // lane, so the boards read as a separate place instead of street clutter.
+  const inDiaryGreen = (p: Point, clearance = 0) => !!diary && Math.hypot(p.x - diary.x, p.z - diary.z) < diary.radius + clearance;
+  const inDiaryLane = (p: Point, clearance = 0) => !!diary && createPathProximity(samplePath(diary.path, 12))(p, 0.62 + clearance);
   const access = layout.plots.map(plot=>createPathProximity(makeThiefArrivalRoute(plot,townTravelRoutes,samplePath,layout.plots)));
-  const isRoad = (p: Point, clearance = 0) => access.some(near=>near(p,0.30+clearance))||roads.some(r => r.near(p,r.width / 2 + clearance)) || inHamletLane(p, clearance) || Math.hypot(p.x,p.z) < townCenterRoundaboutRadius + clearance;
+  const isRoad = (p: Point, clearance = 0) => access.some(near=>near(p,0.30+clearance))||roads.some(r => r.near(p,r.width / 2 + clearance)) || inHamletLane(p, clearance) || inDiaryLane(p, clearance) || Math.hypot(p.x,p.z) < townCenterRoundaboutRadius + clearance;
   const inHouse = (p: Point, clearance = 0) => reserved.some(b => Math.abs(p.x-b.x) < b.width/2+clearance && Math.abs(p.z-b.z) < b.depth/2+clearance);
   const inBuiltHouse = (p:Point,clearance=0)=>layout.plots.some(b=>Math.abs(p.x-b.x)<b.width/2+clearance&&Math.abs(p.z-b.z)<b.depth/2+clearance);
   const inEntity = (p:Point,clearance=0)=>layout.entities.some(e=>Math.abs(p.x-e.x)<e.width/2+clearance&&Math.abs(p.z-e.z)<e.depth/2+clearance);
@@ -69,7 +68,7 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
     } else if (road) {
       const cobbles = [C.roadLight,C.road,C.sand];
       // Hamlet lane is packed earth, not the town's cobbles.
-      const lane = inHamletLane(p);
+      const lane = inHamletLane(p) || inDiaryLane(p);
       const palette = lane ? [C.tan, C.sand, C.brown] : cobbles;
       if (mobile) paving.brick(x,0.01,z,terrainStuds,terrainStuds,palette[Math.floor(rand()*palette.length)],H/3,false);
       else for (const dx of [-S/2,S/2]) for (const dz of [-S/2,S/2]) paving.brick(x+dx,0.01,z+dz,1,1,palette[Math.floor(rand()*palette.length)],H/3,false);
@@ -236,12 +235,14 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   // overlay, so trees and small props can naturally sit between them.
   // Hamlet edge markers: short white posts trace the green so the settlement
   // reads as its own plot without adding a solid fence the camera must cross.
-  if (hamlet) {
+  // Both satellite quarters get the same low white boundary posts, so the town
+  // reads as a settlement with outlying places rather than one blob.
+  for (const quarter of [hamlet, diary].filter((value): value is NonNullable<typeof value> => Boolean(value))) {
     const postCount = 26;
     for (let index = 0; index < postCount; index += 1) {
       const angle = (index / postCount) * Math.PI * 2;
-      const x = hamlet.x + Math.cos(angle) * (hamlet.radius + 0.55);
-      const z = hamlet.z + Math.sin(angle) * (hamlet.radius + 0.55);
+      const x = quarter.x + Math.cos(angle) * (quarter.radius + 0.55);
+      const z = quarter.z + Math.sin(angle) * (quarter.radius + 0.55);
       if (x < BOARD.minX + 0.8 || x > BOARD.maxX - 0.8 || z < BOARD.minZ + 0.8 || z > BOARD.maxZ - 0.8) continue;
       if (inHouse({ x, z }, 0.12) || isWater({ x, z }, 0.1)) continue;
       kit.brick(x, 0.08, z, 1, 1, C.ivory, H / 3, false);

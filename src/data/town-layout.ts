@@ -139,6 +139,10 @@ export interface TownDiaryDistrict {
   boards: TownDiaryBoard[];
   /** The single civic board used by the compact layout. */
   singleBoard: TownDiaryBoard;
+  /** Dirt lane that connects the quarter to the town. */
+  path: Point[];
+  /** Radius of the quarter's clear green. */
+  radius: number;
   /** Bounds that keep article lots and props out of the district. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -264,7 +268,10 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
 // Diary boards are street furniture, not signage: each one keeps the town's
 // axes (facing the plaza) instead of turning toward the camera, and the four
 // silhouettes keep a district from reading as a row of identical notices.
-const DIARY_CENTER = { x: 13.5, z: -5.0 };
+// A quiet outlying quarter in the south-west, mirroring the friend hamlet on
+// the opposite corner so the two read as twin satellite settlements.
+const DIARY_CENTER = { x: -22.0, z: -17.0 };
+const DIARY_RADIUS = 6.6;
 const DIARY_COLUMNS = 3;
 const DIARY_ROWS = 3;
 const DIARY_STEP_X = 2.30;
@@ -275,6 +282,15 @@ const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning
 
 /** One civic notice board beside the windmill, used in `single` mode. */
 export const DIARY_SINGLE_BOARD = { x: -1.8, z: 6.2, width: 1.62, depth: 0.70 } as const;
+
+// Dirt lane from the town's west side out to the diary quarter.
+const DIARY_PATH: Point[] = [
+  { x: -9.2, z: -4.0 },
+  { x: -12.4, z: -7.0 },
+  { x: -15.4, z: -10.0 },
+  { x: -18.0, z: -13.0 },
+  { x: -20.2, z: -15.4 },
+];
 
 const DIARY_SINGLE: TownDiaryBoard = {
   id: 'diary-all',
@@ -306,8 +322,8 @@ export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict |
       z: Number(z.toFixed(3)),
       width: DIARY_BOARD_WIDTH,
       depth: DIARY_BOARD_DEPTH,
-      // Keep the town's axes. Houses all face +Z (the plaza approach), so the
-      // boards use the same rotation instead of turning toward the camera.
+      // Match the houses: boards face +Z, the town's frontage axis, instead of
+      // turning toward the camera or into a ring that shows only their backs.
       rotation: 0,
       accent: index % 4,
       form: DIARY_FORMS[index % DIARY_FORMS.length],
@@ -324,6 +340,8 @@ export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict |
     z: DIARY_CENTER.z,
     boards,
     singleBoard: DIARY_SINGLE,
+    path: DIARY_PATH,
+    radius: DIARY_RADIUS,
     bounds: {
       minX: Math.min(DIARY_CENTER.x - halfW, DIARY_SINGLE.x - DIARY_SINGLE.width / 2) - 0.6,
       maxX: Math.max(DIARY_CENTER.x + halfW, DIARY_SINGLE.x + DIARY_SINGLE.width / 2) + 0.6,

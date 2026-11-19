@@ -223,10 +223,14 @@ assert(withDiary.diary.singleBoard.id === 'diary-all', 'compact diary board must
 for (const plot of withDiary.plots) {
   assert(!collides(plot, withDiary.diary.singleBoard), 'compact diary board collides with an article building');
 }
-// Boards are street furniture: they face the town, never the camera.
+// Boards keep the town's frontage axis rather than turning toward the camera
+// or forming a ring that only shows their backs.
 for (const notice of [...withDiary.diary.boards, withDiary.diary.singleBoard]) {
   assert(notice.rotation === 0, `diary board ${notice.id} must keep the town's axis`);
 }
+// The quarter is an outlying place: it must sit well away from the town core.
+assert(Math.hypot(withDiary.diary.x, withDiary.diary.z) > 18, 'diary quarter must be an outlying district');
+assert(withDiary.diary.path.length > 1, 'diary quarter must be reachable by a lane');
   for (const hut of withFriends.hamlet.huts) {
     assert(!collides(plot, hut), `friend hut ${hut.id} collides with ${plot.postId}`);
   }
