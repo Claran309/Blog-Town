@@ -35,3 +35,9 @@ migration-report.json
 .vite/
 .vercel
 .env*
+
+# Local verification artifacts (screenshots and one-off Playwright scripts).
+# They are useful during a session but must never be committed.
+tmp-*.png
+scripts/.tmp-*
+output/

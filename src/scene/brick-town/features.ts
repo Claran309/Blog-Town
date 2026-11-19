@@ -1,6 +1,6 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Scene } from '@babylonjs/core/scene.js';
-import type { TownFeature } from '../../data/town-layout';
+import type { TownDiaryBoard, TownFeature, TownFriendHut } from '../../data/town-layout';
 import { BrickKit, COLORS as C, COURSE as H, STUD as S } from './kit';
 import { FLOOR_HEIGHT, GROUND_Y } from './buildings';
 
@@ -16,6 +16,163 @@ const RING_FLOORS = new Set([1, 3, 5]);
 const LANTERN_WIDTH = 4;
 
 export function buildFeature(scene: Scene, feature: TownFeature, mobile = false) {
+  return buildWindmill(scene, feature, mobile);
+}
+
+/**
+ * The diary landmark: a small civic notice board. It reuses the town's palette
+ * (pine posts, cream card, coral pins) so it reads as street furniture rather
+ * than a second windmill, and its pinned notes glow at night like the lamps.
+ */
+export function buildDiaryBoard(scene: Scene, board: TownDiaryBoard, mobile = false) {
+  const root = new TransformNode(`diary-board:${board.id}`, scene);
+  root.position.set(board.x, GROUND_Y, board.z);
+  root.rotation.y = board.rotation;
+  const kit = new BrickKit(scene, root, 'plastic', !mobile);
+  const id = `diary-board:${board.id}`;
+  // Civic-scale board: about one and a half times a house facade, so it reads
+  // from the default diorama framing instead of disappearing at map scale.
+  const scale = Math.max(1, Math.round((board.width / 1.1) * 10) / 10);
+  root.scaling.setAll(scale);
+
+  // Two-step footing so the board does not float on the plaza paving.
+  kit.brick(0, 0, 0, 3, 2, C.roadLight, H / 3, false, id);
+  kit.brick(0, H / 3, 0, 2, 1, C.sand, H * 0.6, true, id);
+
+  const postTop = H / 3 + H * 0.6;
+  for (const side of [-1, 1]) {
+    kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
+    // Small finial caps keep the posts from ending as blunt sticks.
+    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, C.navy, 0, id);
+  }
+
+  // Board panel, with a raised ivory face so the pins read against a darker rim.
+  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, C.navy, 0, id);
+  kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.ivory, 0, id);
+
+  // Pinned notes: slightly rotated scraps in the town's accent colours, each
+  // with a coral pin head. Larger than a literal A6 scrap so they stay legible
+  // at the diorama's default zoom.
+  const notes = [
+    { x: -0.27, y: 0.11, roll: -0.15, w: 0.34, h: 0.24, color: C.yellow },
+    { x: 0.08, y: 0.15, roll: 0.08, w: 0.30, h: 0.28, color: C.ivory },
+    { x: 0.31, y: -0.01, roll: -0.06, w: 0.26, h: 0.22, color: C.coral },
+    { x: -0.04, y: -0.13, roll: 0.04, w: 0.38, h: 0.18, color: C.teal },
+  ];
+  for (const note of notes) {
+    kit.rolledBox(note.x, postTop + 1.34 + note.y, 0.08, note.w, note.h, 0.012, note.roll, note.color, 0, id);
+    kit.box(note.x, postTop + 1.34 + note.y + note.h / 2 - 0.025, 0.09, 0.05, 0.05, 0.02, C.red, 0, id);
+  }
+
+  // A tiny shingle hood sheds rain off the board.
+  kit.box(0, postTop + 1.74, 0, 1.24, 0.06, 0.24, C.coral, 0, id);
+  kit.box(0, postTop + 1.78, 0, 1.14, 0.04, 0.18, C.red, 0, id);
+
+  // Two small planters anchor the board to the ground.
+  for (const side of [-1, 1]) {
+    kit.brick(side * 0.60, H / 3, 0.14, 1, 1, C.brown, H * 0.5, false, id);
+    kit.cylinder(side * 0.60, H / 3 + H * 0.5 + 0.06, 0.14, 0.13, 0.10, C.leaf, id);
+  }
+
+  const meshes = kit.flush(`diary-board:${board.id}`);
+  for (const mesh of meshes) {
+    mesh.metadata = { ...mesh.metadata, diaryId: board.id };
+  }
+  return { root, meshes, board, anchorY: postTop + 2.05 };
+}
+
+/**
+ * One friend's house in the outlying hamlet. Deliberately simpler than an
+ * article building: a single lit floor, a coloured gable roof, a mailbox and a
+ * porch lamp. The name is rendered as a DOM label, never as 3D text.
+ */
+export function buildFriendHut(scene: Scene, hut: TownFriendHut, mobile = false) {
+  const root = new TransformNode(`friend-hut:${hut.id}`, scene);
+  root.position.set(hut.x, GROUND_Y, hut.z);
+  root.rotation.y = hut.rotation;
+  const kit = new BrickKit(scene, root, 'plastic', !mobile);
+  const id = `friend-hut:${hut.id}`;
+  const nx = Math.max(4, Math.round(hut.width / S));
+  const nz = Math.max(3, Math.round(hut.depth / S));
+  const w = nx * S;
+  const d = nz * S;
+  const roofColors = [C.coral, C.teal, C.yellow, C.pine, C.blue];
+  const roof = roofColors[hut.accent % roofColors.length];
+  const wall = hut.accent % 2 ? C.cream : C.ivory;
+
+  kit.brick(0, 0, 0, nx, nz, C.roadLight, H / 3, false, id);
+
+  const courses = 6;
+  for (let course = 0; course < courses; course++) {
+    const y = H / 3 + course * H;
+    for (const side of [-1, 1]) {
+      for (let col = 0; col < nx; col++) {
+        const x = (col - (nx - 1) / 2) * S;
+        const isWindow = (col === 1 || col === nx - 2) && course >= 2 && course <= 4;
+        const isDoor = side === 1 && col === Math.floor(nx / 2) && course <= 2;
+        if (!isWindow && !isDoor) kit.brick(x, y, side * (d - S) / 2, 1, 1, course === 0 ? C.sand : wall, H, course === courses - 1, id);
+      }
+      for (let row = 1; row < nz - 1; row++) {
+        const isWindow = row === 1 && course >= 2 && course <= 4;
+        if (!isWindow) kit.brick(side * (w - S) / 2, y, (row - (nz - 1) / 2) * S, 1, 1, course === 0 ? C.sand : wall, H, course === courses - 1, id);
+      }
+    }
+  }
+
+  // Front door with a warm pane and a step.
+  const doorZ = d / 2 - 0.02;
+  kit.box(0, H / 3 + H * 1.5, doorZ, S * 0.8, H * 2.9, 0.05, C.brown, 0, id);
+  kit.box(0, H / 3 + H * 1.8, doorZ + 0.03, S * 0.4, H * 1.2, 0.02, '#5e97a4', 0, id, true);
+  kit.box(0, H / 3 + H * 0.12, doorZ + 0.14, S * 1.2, H * 0.24, 0.22, C.sand, 0, id);
+
+  // Two lit front windows: the glow reads as "someone is home".
+  for (const side of [-1, 1]) {
+    const x = side * (nx - 2) * S / 2;
+    kit.box(x, H / 3 + H * 3.1, doorZ + 0.01, S * 0.9, H * 1.9, 0.04, '#5e97a4', 0, id, true);
+    kit.box(x, H / 3 + H * 3.1, doorZ + 0.05, 0.03, H * 2.0, 0.05, C.ivory, 0, id);
+    kit.box(x, H / 3 + H * 2.05, doorZ + 0.07, S * 1.15, 0.05, 0.10, C.ivory, 0, id);
+  }
+
+  // Gable roof in the hut's accent colour, with a stepped ridge.
+  const roofBase = H / 3 + courses * H;
+  const levels = Math.max(1, Math.ceil(nz / 2));
+  for (let level = 0; level < levels; level++) {
+    const rw = Math.max(1, nx - level * 2);
+    const rd = Math.max(1, nz - level * 2);
+    for (let col = 0; col < rw; col++) for (let row = 0; row < rd; row++) {
+      kit.brick((col - (rw - 1) / 2) * S, roofBase + level * H * 1.1, (row - (rd - 1) / 2) * S, 1, 1, (row + col) % 5 === 0 ? C.ivory : roof, H * 1.1, true, id);
+    }
+  }
+  kit.brick(0, roofBase + levels * H * 1.1, 0, 1, 1, C.navy, H * 0.7, false, id);
+
+  // Porch lamp on the front-right corner and a mailbox by the path.
+  kit.box(w / 2 - S * 0.4, H / 3 + H * 3.6, d / 2 + 0.05, 0.07, 0.07, 0.10, C.black, 0, id);
+  kit.box(w / 2 - S * 0.4, H / 3 + H * 3.4, d / 2 + 0.10, 0.12, 0.14, 0.12, C.yellow, 0, id, true);
+  kit.box(-w / 2 - 0.12, H / 3 + H * 0.8, d / 2 + 0.12, 0.06, 0.62, 0.06, C.brown, 0, id);
+  kit.box(-w / 2 - 0.12, H / 3 + H * 1.2, d / 2 + 0.12, 0.16, 0.13, 0.16, C.red, 0, id);
+
+  // A blank nameplate above the door. The name itself is DOM text projected
+  // above the hut, so the plate only needs to read as a sign at map scale.
+  kit.box(0, H / 3 + H * 4.55, d / 2 + 0.03, S * 1.35, H * 0.85, 0.04, C.ivory, 0, id);
+  kit.box(0, H / 3 + H * 4.55, d / 2 + 0.055, S * 1.05, H * 0.16, 0.02, roof, 0, id);
+
+  // Two window boxes under the front windows add colour without extra glass.
+  for (const side of [-1, 1]) {
+    const x = side * (nx - 2) * S / 2;
+    kit.box(x, H / 3 + H * 1.95, d / 2 + 0.09, S * 0.95, H * 0.35, 0.12, C.brown, 0, id);
+    for (const offset of [-S * 0.28, 0, S * 0.28]) {
+      kit.cylinder(x + offset, H / 3 + H * 2.2, d / 2 + 0.09, 0.09, 0.08, offset === 0 ? C.yellow : C.coral, id);
+    }
+  }
+
+  const meshes = kit.flush(`friend-hut:${hut.id}`);
+  for (const mesh of meshes) {
+    mesh.metadata = { ...mesh.metadata, friendId: hut.id };
+  }
+  return { root, meshes, hut, anchorY: roofBase + levels * H * 1.1 + H * 1.6 };
+}
+
+function buildWindmill(scene: Scene, feature: TownFeature, mobile = false) {
   const root = new TransformNode(`feature:${feature.id}`, scene);
   root.position.set(feature.x, GROUND_Y, feature.z);
   const kit = new BrickKit(scene, root, 'plastic', !mobile);

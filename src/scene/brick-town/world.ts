@@ -23,9 +23,20 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   const roads = Object.entries(roadCenterlines).map(([key, path]) => ({ near: createPathProximity(samplePath(path, 12)), width: roadWidths[key as keyof typeof roadWidths] }));
   const nearRiver = createPathProximity(samplePath(riverCenterline, 12));
   const centerFeature = layout.features?.find((feature) => feature.kind === 'about');
-  const reserved = [...(layout.reservedPlots ?? layout.plots), ...(layout.features ?? [])];
+  const reserved = [...(layout.reservedPlots ?? layout.plots), ...(layout.features ?? []), ...(layout.hamlet?.huts ?? []), ...(layout.diary?.boards ?? [])];
+  const hamlet = layout.hamlet;
+  const diary = layout.diary;
+  // The hamlet is a separate settlement: its green, huts and lane are carved
+  // out of the town's decoration field instead of being sprinkled over.
+  const inHamletGreen = (p: Point, clearance = 0) => !!hamlet && Math.hypot(p.x - hamlet.x, p.z - hamlet.z) < hamlet.radius + clearance;
+  const inHamletLane = (p: Point, clearance = 0) => !!hamlet && createPathProximity(samplePath(hamlet.path, 12))(p, 0.62 + clearance);
+  // The diary district keeps its own clear green so the boards stay readable
+  // instead of being buried under the town's decorative trees.
+  const inDiaryGreen = (p: Point, clearance = 0) => !!diary
+    && p.x > diary.bounds.minX - clearance && p.x < diary.bounds.maxX + clearance
+    && p.z > diary.bounds.minZ - clearance && p.z < diary.bounds.maxZ + clearance;
   const access = layout.plots.map(plot=>createPathProximity(makeThiefArrivalRoute(plot,townTravelRoutes,samplePath,layout.plots)));
-  const isRoad = (p: Point, clearance = 0) => access.some(near=>near(p,0.30+clearance))||roads.some(r => r.near(p,r.width / 2 + clearance)) || Math.hypot(p.x,p.z) < townCenterRoundaboutRadius + clearance;
+  const isRoad = (p: Point, clearance = 0) => access.some(near=>near(p,0.30+clearance))||roads.some(r => r.near(p,r.width / 2 + clearance)) || inHamletLane(p, clearance) || Math.hypot(p.x,p.z) < townCenterRoundaboutRadius + clearance;
   const inHouse = (p: Point, clearance = 0) => reserved.some(b => Math.abs(p.x-b.x) < b.width/2+clearance && Math.abs(p.z-b.z) < b.depth/2+clearance);
   const inBuiltHouse = (p:Point,clearance=0)=>layout.plots.some(b=>Math.abs(p.x-b.x)<b.width/2+clearance&&Math.abs(p.z-b.z)<b.depth/2+clearance);
   const inEntity = (p:Point,clearance=0)=>layout.entities.some(e=>Math.abs(p.x-e.x)<e.width/2+clearance&&Math.abs(p.z-e.z)<e.depth/2+clearance);
@@ -57,8 +68,21 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
       if (!mobile && rand()<0.16) terrain.box(x,0.008,z,S*1.4,0.024,S*0.13,'#abdadd');
     } else if (road) {
       const cobbles = [C.roadLight,C.road,C.sand];
-      if (mobile) paving.brick(x,0.01,z,terrainStuds,terrainStuds,cobbles[Math.floor(rand()*cobbles.length)],H/3,false);
-      else for (const dx of [-S/2,S/2]) for (const dz of [-S/2,S/2]) paving.brick(x+dx,0.01,z+dz,1,1,cobbles[Math.floor(rand()*cobbles.length)],H/3,false);
+      // Hamlet lane is packed earth, not the town's cobbles.
+      const lane = inHamletLane(p);
+      const palette = lane ? [C.tan, C.sand, C.brown] : cobbles;
+      if (mobile) paving.brick(x,0.01,z,terrainStuds,terrainStuds,palette[Math.floor(rand()*palette.length)],H/3,false);
+      else for (const dx of [-S/2,S/2]) for (const dz of [-S/2,S/2]) paving.brick(x+dx,0.01,z+dz,1,1,palette[Math.floor(rand()*palette.length)],H/3,false);
+    } else if (diary && inDiaryGreen(p)) {
+      // The diary green is a civic square: plain ground, no scattered props,
+      // so the notice boards read as the only thing worth looking at.
+      groundTiles.push(p);
+      terrain.brick(x,0.0,z,terrainStuds,terrainStuds,rand()<0.14?C.moss:C.green,H/3,false);
+    } else if (hamlet && inHamletGreen(p)) {
+      // The hamlet green stays intentionally plain: fewer props, no paving,
+      // so the settlement reads as a quiet field rather than town extension.
+      groundTiles.push(p);
+      terrain.brick(x,0.0,z,terrainStuds,terrainStuds,rand()<0.16?C.moss:C.green,H/3,false);
     } else {
       groundTiles.push(p);
       const nearShore = isWater(p,0.55);
@@ -130,6 +154,8 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   const canPlaceDecor = (p: Point, radius: number, gap = 0.18) =>
     !isRoad(p, radius + 0.18) && !isWater(p, radius + 0.12) && !inHouse(p, radius + 0.10)
     && !inEntity(p, radius + 0.08) && Math.hypot(p.x,p.z)>3.2
+    && !inHamletGreen(p, radius + 0.2)
+    && !inDiaryGreen(p, radius + 0.2)
     && !decor.some(t=>Math.hypot(t.x-p.x,t.z-p.z)<t.radius+radius+gap);
   function tree(x:number,z:number,size:number,autumn:boolean) {
     const leaf=autumn?C.yellow:C.leaf, shade=autumn?C.coral:C.pine;
@@ -208,6 +234,22 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   // Empty article lots are collision-only reservations. They intentionally
   // use the same ground as the rest of the diorama and receive no special
   // overlay, so trees and small props can naturally sit between them.
+  // Hamlet edge markers: short white posts trace the green so the settlement
+  // reads as its own plot without adding a solid fence the camera must cross.
+  if (hamlet) {
+    const postCount = 26;
+    for (let index = 0; index < postCount; index += 1) {
+      const angle = (index / postCount) * Math.PI * 2;
+      const x = hamlet.x + Math.cos(angle) * (hamlet.radius + 0.55);
+      const z = hamlet.z + Math.sin(angle) * (hamlet.radius + 0.55);
+      if (x < BOARD.minX + 0.8 || x > BOARD.maxX - 0.8 || z < BOARD.minZ + 0.8 || z > BOARD.maxZ - 0.8) continue;
+      if (inHouse({ x, z }, 0.12) || isWater({ x, z }, 0.1)) continue;
+      kit.brick(x, 0.08, z, 1, 1, C.ivory, H / 3, false);
+      kit.box(x, 0.40, z, 0.075, 0.52, 0.075, C.ivory);
+      kit.cylinder(x, 0.68, z, 0.12, 0.06, C.ivory);
+      snowSurfaces.add({ x, y: 0.71, z, width: 0.14, depth: 0.14 });
+    }
+  }
   const groundMeshes=terrain.flush('terrain'), shoreMeshes=shore.flush('shore'), roadMeshes=paving.flush('road');
   const riverMeshes=water.flush('water'), foliageMeshes=foliage.flush('foliage');
   const terrainMeshes=[...groundMeshes,...shoreMeshes,...roadMeshes,...riverMeshes];

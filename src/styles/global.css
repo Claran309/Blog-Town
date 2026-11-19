@@ -184,10 +184,11 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .about-inapp-portrait img { display: block; width: 148px; height: 148px; object-fit: cover; border: 1px solid var(--line); border-radius: 20px; }
 .about-inapp-badge { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 8px; letter-spacing: .16em; }
 .about-inapp-intro > p { margin: 0 0 16px; color: var(--muted); font-family: var(--serif); font-size: 13px; line-height: 1.85; }
-.about-inapp-stats { display: flex; gap: 10px; margin-bottom: 16px; }
-.about-inapp-stats > div { flex: 1 1 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--paper) 70%, transparent); }
-.about-inapp-stats strong { display: block; font-family: var(--display); font-size: 20px; letter-spacing: -.03em; }
-.about-inapp-stats span { color: #9b9484; font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
+.about-inapp-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.about-inapp-stats > div { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; min-width: 0; padding: 10px 11px; border: 1px solid rgba(23, 32, 51, .10); border-radius: 12px; background: var(--paper-2, #f8fafc); }
+.about-inapp-stats strong { display: block; font-family: var(--display); font-size: 20px; line-height: 1.15; letter-spacing: -.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.about-inapp-stats span { color: var(--muted-2); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mode-night .about-inapp-stats > div { border-color: rgba(248, 250, 252, .10); background: #111c2f; }
 .about-inapp-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .about-inapp-links a { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-decoration: none; }
 .about-inapp-links a:hover { border-color: var(--gold); color: var(--gold); }
@@ -1745,3 +1746,107 @@ a.touch-preview-read,
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* ---- Diary: a notice board pinned to the town wall ---- */
+.diary-page { padding: 58px 42px 90px; }
+.diary-head { max-width: 760px; margin: 0 auto 34px; }
+.diary-head h1 { margin: 10px 0 12px; font-family: var(--display); font-size: clamp(38px, 5vw, 62px); letter-spacing: -.045em; line-height: 1.05; }
+.diary-head p { margin: 0; max-width: 520px; color: var(--muted); font-family: var(--serif); font-size: 13px; line-height: 1.85; }
+.diary-layout { display: grid; grid-template-columns: 132px minmax(0, 700px); gap: 44px; max-width: 900px; margin: 0 auto; align-items: start; }
+.diary-months { position: sticky; top: 24px; display: grid; gap: 2px; padding-top: 4px; }
+.diary-months a { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 8px 4px; border-bottom: 1px solid rgba(23, 32, 51, .10); color: var(--muted); font-family: var(--mono); font-size: 9px; text-decoration: none; }
+.diary-months a:hover { color: var(--ink); border-bottom-color: var(--blue); }
+.diary-months b { color: color-mix(in srgb, var(--gold) 80%, transparent); font-weight: 400; }
+.diary-timeline { display: grid; gap: 34px; }
+.diary-month { scroll-margin-top: 110px; }
+.diary-month > h2 { margin: 0 0 16px; color: var(--muted); font-family: var(--mono); font-size: 9px; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; }
+.diary-card { position: relative; margin-bottom: 18px; padding: 26px 24px 22px; border: 1px solid rgba(23, 32, 51, .12); border-radius: 6px; background: var(--paper-2, #f8fafc); box-shadow: 5px 7px 0 rgba(23, 32, 51, .05); }
+.diary-tape { position: absolute; top: -10px; left: 24px; width: 76px; height: 21px; background: rgba(37, 99, 235, .16); border: 1px solid rgba(37, 99, 235, .22); transform: rotate(-2.2deg); }
+.diary-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 11px; color: var(--muted-2); font-family: var(--mono); font-size: 8px; letter-spacing: .06em; }
+.diary-meta em { padding: 2px 7px; border-radius: 999px; background: rgba(37, 99, 235, .10); color: var(--blue); font-style: normal; }
+.diary-card > p { margin: 0; font-family: var(--serif); font-size: 13.5px; line-height: 1.95; }
+.diary-images { display: grid; gap: 8px; margin-top: 16px; }
+.diary-images.count-1 { grid-template-columns: 1fr; }
+.diary-images.count-2 { grid-template-columns: 1fr 1fr; }
+.diary-images.count-3 { grid-template-columns: 1fr 1fr; }
+.diary-images a { display: block; overflow: hidden; border: 1px solid rgba(23, 32, 51, .10); border-radius: 4px; background: var(--paper-2, #f8fafc); }
+.diary-images img { display: block; width: 100%; height: auto; max-height: 460px; object-fit: contain; background: var(--paper-2, #f8fafc); transition: transform .35s ease; }
+.diary-images a:hover img { transform: scale(1.02); }
+
+/* ---- Friends: the hamlet list keeps its selection while the camera travels ---- */
+.friend-row { display: grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: center; gap: 4px; padding: 0; border-bottom: 1px solid rgba(23, 32, 51, .08); }
+.friend-row:hover { background: rgba(255,255,255,.46); }
+.friend-row.is-selected { background: rgba(37, 99, 235, .08); box-shadow: inset 2px 0 0 var(--blue); }
+.friend-pick { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: center; padding: 7px 4px 7px 7px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.friend-visit { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; color: #899d8c; }
+.friend-visit:hover { background: rgba(255,255,255,.6); color: var(--ink); }
+.friend-visit .icon { width: 12px; }
+.friend-row.is-selected .friend-visit { color: var(--blue); }
+
+/* ---- Friend label projected above the chosen hut ---- */
+.town-friend-tag { width: 186px; padding: 12px 13px; }
+.friend-tag-head { display: flex; align-items: center; gap: 9px; }
+.friend-tag-avatar { display: grid; place-items: center; width: 26px; height: 26px; overflow: hidden; border-radius: 50%; background: #b8c7b6; }
+.friend-tag-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.town-friend-tag strong { font-family: var(--serif); font-size: 13px; font-weight: 600; }
+.town-friend-tag p { margin: 8px 0 10px; color: var(--muted); font-family: var(--serif); font-size: 10.5px; line-height: 1.6; }
+.town-friend-tag a { display: inline-flex; align-items: center; gap: 4px; color: var(--blue); font-family: var(--mono); font-size: 9px; text-decoration: none; }
+.town-friend-tag a .icon { width: 11px; }
+
+/* ---- Diary board label projected above a notice board ---- */
+.town-diary-tag { width: 246px; padding: 12px 13px; }
+.town-diary-tag .tooltip-meta { margin-bottom: 6px; }
+.town-diary-tag strong { display: block; margin: 0 0 8px; color: var(--ink); font-family: var(--serif); font-size: 11.5px; font-weight: 500; line-height: 1.7; }
+.town-diary-tag a { display: inline-flex; align-items: center; gap: 4px; color: var(--blue); font-family: var(--mono); font-size: 9px; text-decoration: none; }
+.town-diary-tag a .icon { width: 11px; }
+
+/* ---- Diary district: highlight the entry a board links to ---- */
+.diary-card:target { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37, 99, 235, .18), 5px 7px 0 rgba(23, 32, 51, .05); }
+
+/* Right-edge flip: keep the card inside the viewport instead of clipping it. */
+.town-tooltip.is-flipped { transform: translate(calc(-100% - 15px), -100%); }
+.town-tooltip.is-flipped::before { right: auto; left: 100%; border-left: 0; border-right: 3px solid color-mix(in srgb, var(--ink) 68%, var(--gold)); transform: rotate(45deg); }
+.mode-night .town-tooltip.is-flipped::before { border-right-color: color-mix(in srgb, #efe2c6 52%, #b49054); }
+@media (max-width: 720px) {
+  .town-tooltip.is-flipped { transform: translate(-50%, -108%); }
+}
+
+/* ---- Article read count ---- */
+.article-view-count { color: var(--blue); }
+
+/* ---- About stat grid grows to four figures ---- */
+
+
+.town-stat-strip { max-width: 1060px; margin: 0 auto; padding: 34px 42px 0; }
+.town-stat-strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.town-stat-strip-head button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--blue); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; cursor: pointer; }
+.town-stat-strip-head button .icon { width: 12px; }
+.town-stat-strip-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.town-stat-strip-cell { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; min-width: 0; padding: 12px 13px; border: 1px solid rgba(23, 32, 51, .10); border-radius: 12px; background: var(--paper-2, #f8fafc); }
+.town-stat-strip-cell strong { font-family: var(--display); font-size: 22px; line-height: 1.1; letter-spacing: -.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.town-stat-strip-cell span { color: var(--muted-2); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
+.mode-night .town-stat-strip-cell { border-color: rgba(248, 250, 252, .10); background: #111c2f; }
+
+@media (max-width: 900px) {
+  .town-stat-strip { padding: 28px 20px 0; }
+  .town-stat-strip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .diary-page { padding: 40px 20px 70px; }
+  .diary-layout { grid-template-columns: 1fr; gap: 24px; }
+  .diary-months { position: static; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; }
+  .diary-months a { flex: 0 0 auto; gap: 6px; padding: 6px 10px; border: 1px solid rgba(23, 32, 51, .10); border-radius: 999px; }
+  .about-inapp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .town-stat-strip { padding: 24px 16px 0; }
+  .town-stat-strip-head { flex-wrap: wrap; }
+  .diary-page { padding: 30px 16px 60px; }
+  .diary-card { padding: 18px 16px 16px; }
+  .diary-images.count-2, .diary-images.count-3 { grid-template-columns: 1fr; }
+}
+.mode-night .friend-row { border-bottom-color: rgba(248, 250, 252, .08); }.mode-night .friend-row:hover { background: rgba(255,255,255,.08); }.mode-night .friend-row.is-selected { background: rgba(96, 165, 250, .14); box-shadow: inset 2px 0 0 var(--blue); }
+.mode-night .friend-visit:hover { background: rgba(255,255,255,.1); }
+.mode-night .diary-card { background: #111c2f; border-color: rgba(248, 250, 252, .10); box-shadow: 5px 7px 0 rgba(0, 0, 0, .28); }.mode-night .diary-tape { background: rgba(96, 165, 250, .20); border-color: rgba(96, 165, 250, .26); }.mode-night .diary-months a { border-bottom-color: rgba(248, 250, 252, .10); }.mode-night .diary-images a { border-color: rgba(248, 250, 252, .10); }
+
+
+
+

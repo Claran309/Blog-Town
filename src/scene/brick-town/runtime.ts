@@ -15,7 +15,7 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.
 import '@babylonjs/core/Culling/ray.js';
 import { BOARD, buildWorld, randomFor } from './world';
 import { buildHouse, FLOOR_HEIGHT, GROUND_Y } from './buildings';
-import { buildFeature } from './features';
+import { buildDiaryBoard, buildFeature, buildFriendHut } from './features';
 import { buildMinifig } from './minifig';
 import { createLife, tickLife, type Citizen } from './life';
 import { weatherIsPrecipitating } from '../../data/town-weather';
@@ -28,8 +28,8 @@ import type { TownLayout } from '../../data/town-layout';
 import type { TownSceneProps } from './types';
 import { clampToPanBounds, getCameraPanBounds, getDragPanDelta } from './view';
 
-export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
-export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onSelectPost'|'onOpenFeature'|'onTownExplored'> & {
+export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
+export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onHoverFriend'|'onHoverDiary'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onResolveFriendAnchor'|'onResolveDiaryAnchor'|'onSelectPost'|'onOpenFeature'|'onSelectFriend'|'onSelectDiary'|'onTownExplored'> & {
   onResolveNewPostAnchors?: (frame: PostNoticeFrame) => void;
 };
 const color=(hex:string)=>Color3.FromHexString(hex);
@@ -124,6 +124,15 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   const features=(layout.features??[]).map(feature=>buildFeature(scene,feature,mobile));
   const featureMeshes=features.flatMap(feature=>feature.meshes);
   const featureById=new Map(features.map(feature=>[feature.feature.id,feature]));
+  // Diagnostics for the landmark verifier: proves every authored landmark got
+  // real geometry instead of silently failing to build.
+  canvas.dataset.features=features.map(feature=>`${feature.feature.id}:${feature.meshes.length}`).join(',');
+  const friendHuts=(layout.hamlet?.huts??[]).map(hut=>buildFriendHut(scene,hut,mobile));
+  const friendMeshes=friendHuts.flatMap(hut=>hut.meshes);
+  const friendById=new Map(friendHuts.map(hut=>[hut.hut.id,hut]));
+  const diaryBoards=(layout.diary?.boards??[]).map(board=>buildDiaryBoard(scene,board,mobile));
+  const diaryMeshes=diaryBoards.flatMap(board=>board.meshes);
+  const diaryById=new Map(diaryBoards.map(board=>[board.board.id,board]));
   const postNotices=createPostNoticeProjector(scene,camera,houses);
   const seasons=createSeasonController({scene,world,mobile,seed:layout.seed,surfaces:[...world.snowSurfaces,...houses.flatMap(h=>h.snowSurfaces)]});
   const weather=createWeatherController(scene,layout.seed,mobile);
@@ -132,8 +141,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   // Terrain plates cannot cast a useful shadow onto themselves. Excluding that
   // multi-million-instance surface cuts most shadow-map geometry while houses,
   // trees, props and citizens retain their natural shadows.
-  for(const m of [...world.shadowCasters,...houseMeshes,...featureMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
-  for(const m of [...world.meshes,...houseMeshes,...featureMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
+  for(const m of [...world.shadowCasters,...houseMeshes,...featureMeshes,...friendMeshes,...diaryMeshes,...seasons.meshes.filter(m=>!m.metadata.thinInstances)])shadows.addShadowCaster(m);
+  for(const m of [...world.meshes,...houseMeshes,...featureMeshes,...friendMeshes,...diaryMeshes]){m.computeWorldMatrix(true);m.freezeWorldMatrix();}
   let glow:import('@babylonjs/core/Layers/glowLayer.js').GlowLayer|undefined;
   let highlights:import('@babylonjs/core/Layers/highlightLayer.js').HighlightLayer|undefined;
   let fxaa:import('@babylonjs/core/PostProcesses/fxaaPostProcess.js').FxaaPostProcess|undefined;
@@ -152,6 +161,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     for(const m of [...world.meshes,...seasons.meshes])glow.addExcludedMesh(m);
     for(const m of houseMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
     for(const m of featureMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
+    for(const m of friendMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
+    for(const m of diaryMeshes)if(!m.metadata.glass)glow.addExcludedMesh(m);
     highlights=new highlightModule.HighlightLayer('article-floor-highlight',scene,{mainTextureRatio:mobile?0.32:0.5});
     highlights.blurHorizontalSize=mobile?0.35:0.55;highlights.blurVerticalSize=mobile?0.35:0.55;highlights.innerGlow=false;
     if(fxaaModule){fxaa=new fxaaModule.FxaaPostProcess('brick-fxaa',1,camera);fxaa.samples=1;}
@@ -171,6 +182,9 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   const houseByPostId=new Map<string,ReturnType<typeof buildHouse>>();
   for(const house of houses)for(const id of house.ids)houseByPostId.set(id,house);
   let featureFocus='';
+  let friendFocus='';
+  let lastFocusedFriend='';
+  let lastFocusedDiary='';
   let articleMeshes=[...houseMeshes,...seasons.articleMeshes];
   let highlightSignature='';
   let state={...initial};let frames=0;let elapsed=0;
@@ -193,7 +207,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     hemi.diffuse=color(profile.lighting.sky);
     hemi.intensity=night?0.18:rainy?0.40:0.25;scene.environmentIntensity=night?0.20:0.5;
     scene.imageProcessingConfiguration.exposure=night?0.8:0.82;
-    for(const m of [...houseMeshes,...featureMeshes])if(m.metadata.glass){
+    for(const m of [...houseMeshes,...featureMeshes,...friendMeshes,...diaryMeshes])if(m.metadata.glass){
       const mat=m.material as PBRMaterial;mat.emissiveColor=night?color('#ffb751'):Color3.Black();mat.emissiveIntensity=night?1.5:0;
       mat.albedoColor=color(night?'#edbd6d':'#5e97a4');
     }
@@ -207,6 +221,19 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     for(const house of houses)for(const mesh of house.meshes)mesh.visibility=next?0.55:1;
     requestDraw();
   }
+  // Selecting a neighbour dims the rest of the town so the chosen hut and its
+  // label read clearly, mirroring the existing About-landmark focus treatment.
+  function applyFriendFocus(id?: string) {
+    const next=id&&friendById.has(id)?id:'';
+    if(next===friendFocus)return;
+    friendFocus=next;
+    const dim=!!next;
+    for(const house of houses)for(const mesh of house.meshes)mesh.visibility=dim?0.45:1;
+    for(const feature of features)for(const mesh of feature.meshes)mesh.visibility=dim?0.45:1;
+    for(const hut of friendHuts)if(hut.hut.id!==next)for(const mesh of hut.meshes)mesh.visibility=dim?0.45:1;
+    if(!next)for(const hut of friendHuts)for(const mesh of hut.meshes)mesh.visibility=1;
+    requestDraw();
+  }
   function update(next:SceneState) {
     const seasonChanged=next.season!==state.season;
     const rebuildPeople=next.colorMode!==state.colorMode;
@@ -218,9 +245,18 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       shadows.getShadowMap()?.resetRefreshCounter();
       articleMeshes=[...houseMeshes,...seasons.articleMeshes];
     }
-    state={...next};applyFeatureFocus(state.hoveredFeatureId);if(rebuildPeople)populate();else if(seasonChanged)rebuildFigures();if(environmentChanged)lighting();
+    state={...next};
+    // Hover previews a hut; the selection stays highlighted underneath so the
+    // camera target and the list state do not flicker while sweeping the row.
+    const activeFriend=state.hoveredFriendId??state.selectedFriendId;
+    const activeDiary=state.hoveredDiaryId??'';
+    applyFeatureFocus(state.hoveredFeatureId);applyFriendFocus(activeFriend);if(rebuildPeople)populate();else if(seasonChanged)rebuildFigures();if(environmentChanged)lighting();
+    const focusedFriendId=state.focusedFriendId??'';
+    if(focusedFriendId!==lastFocusedFriend){lastFocusedFriend=focusedFriendId;if(focusedFriendId)focusFriend(focusedFriendId);}
+    const focusedDiaryId=state.focusedDiaryId??'';
+    if(focusedDiaryId!==lastFocusedDiary){lastFocusedDiary=focusedDiaryId;if(focusedDiaryId)focusDiary(focusedDiaryId);}
     if(state.reducedMotion)seasons.tick(0,true);
-    const nextHighlightSignature=[state.query,state.category??'',state.tag??'',state.hoveredPostId??'',state.hoveredFeatureId??'',state.activePostId??'',state.season].join('\u0000');
+    const nextHighlightSignature=[state.query,state.category??'',state.tag??'',state.hoveredPostId??'',state.hoveredFeatureId??'',activeFriend??'',activeDiary,state.activePostId??'',state.season].join('\u0000');
     if(highlights && nextHighlightSignature!==highlightSignature) {
       const needle=state.query.trim().toLowerCase();let hasHighlight=false;
       for(const mesh of articleMeshes){
@@ -233,11 +269,21 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
         const direct=feature.feature.id===state.hoveredFeatureId;
         for(const mesh of feature.meshes){if(direct){highlights.addMesh(mesh,color('#f6c85c'));hasHighlight=true;}else highlights.removeMesh(mesh);}
       }
+      for(const hut of friendHuts){
+        const direct=hut.hut.id===activeFriend;
+        for(const mesh of hut.meshes){if(direct){highlights.addMesh(mesh,color('#f6c85c'));hasHighlight=true;}else highlights.removeMesh(mesh);}
+      }
+      for(const board of diaryBoards){
+        const direct=board.board.id===activeDiary;
+        for(const mesh of board.meshes){if(direct){highlights.addMesh(mesh,color('#f6c85c'));hasHighlight=true;}else highlights.removeMesh(mesh);}
+      }
       highlights.isEnabled=hasHighlight;
       highlightSignature=nextHighlightSignature;
     }
     if(state.hoveredPostId)anchor(state.hoveredPostId);
     if(state.hoveredFeatureId)anchorFeature(state.hoveredFeatureId);
+    if(activeFriend)anchorFriend(activeFriend);
+    if(activeDiary)anchorDiary(activeDiary);
     requestDraw();
   }
   function anchor(id:string){
@@ -256,12 +302,73 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
     callbacks().onResolveFeatureAnchor(id,a);return a;
   }
+  function anchorFriend(id:string){
+    const hut=friendById.get(id);if(!hut)return;
+    const point=new Vector3(hut.hut.x,GROUND_Y+hut.anchorY,hut.hut.z);
+    const rect=canvas.getBoundingClientRect();
+    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
+    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    callbacks().onResolveFriendAnchor(id,a);return a;
+  }
+  function anchorDiary(id:string){
+    const board=diaryById.get(id);if(!board)return;
+    const point=new Vector3(board.board.x,GROUND_Y+board.anchorY,board.board.z);
+    const rect=canvas.getBoundingClientRect();
+    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
+    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    callbacks().onResolveDiaryAnchor(id,a);return a;
+  }
+  // Camera travel for the hamlet. Pan is clamped to the same bounds as drag,
+  // and the zoom floor keeps the hut readable without losing its neighbours.
+  let focusAnimation:{fromX:number;fromZ:number;toX:number;toZ:number;fromZoom:number;toZoom:number;start:number;duration:number}|undefined;
+  function focusFriend(id:string|undefined){
+    const hut=id?friendById.get(id):undefined;
+    if(!hut)return;
+    const bounds=getCameraPanBounds(BOARD,camera.alpha,camera.beta,camera.orthoRight!-camera.orthoLeft!,camera.orthoTop!-camera.orthoBottom!);
+    const target=clampToPanBounds({x:hut.hut.x,z:hut.hut.z},bounds);
+    focusAnimation={
+      fromX:camera.target.x,fromZ:camera.target.z,toX:target.x,toZ:target.z,
+      fromZoom:zoom,toZoom:Math.max(zoom,1.45),
+      start:performance.now(),duration:state.reducedMotion?0:680,
+    };
+    requestDraw();
+  }
+  function focusDiary(id:string){
+    const board=diaryById.get(id);
+    if(!board)return;
+    const bounds=getCameraPanBounds(BOARD,camera.alpha,camera.beta,camera.orthoRight!-camera.orthoLeft!,camera.orthoTop!-camera.orthoBottom!);
+    const target=clampToPanBounds({x:board.board.x,z:board.board.z},bounds);
+    focusAnimation={
+      fromX:camera.target.x,fromZ:camera.target.z,toX:target.x,toZ:target.z,
+      fromZoom:zoom,toZoom:Math.max(zoom,1.55),
+      start:performance.now(),duration:state.reducedMotion?0:680,
+    };
+    requestDraw();
+  }
+  function tickFocus(now:number){
+    if(!focusAnimation)return;
+    const progress=Math.min(1,Math.max(0,(now-focusAnimation.start)/(focusAnimation.duration||1)));
+    // Ease-in-out cubic keeps the travel calm at both ends.
+    const eased=progress<0.5?4*progress*progress*progress:1-Math.pow(-2*progress+2,3)/2;
+    camera.target.x=focusAnimation.fromX+(focusAnimation.toX-focusAnimation.fromX)*eased;
+    camera.target.z=focusAnimation.fromZ+(focusAnimation.toZ-focusAnimation.fromZ)*eased;
+    applyZoom(focusAnimation.fromZoom+(focusAnimation.toZoom-focusAnimation.fromZoom)*eased);
+    if(progress>=1)focusAnimation=undefined;
+    // The label is a DOM projection, so it has to follow the camera every
+    // frame of the travel instead of staying at its pre-focus screen point.
+    const active=state.hoveredFriendId??state.selectedFriendId;
+    if(active)anchorFriend(active);
+    if(state.hoveredDiaryId)anchorDiary(state.hoveredDiaryId);
+    requestDraw();
+  }
   let lastHover:string|undefined,lastPickAt=0;
   const pointers=new Map<number,{x:number;y:number;type:string}>();
   let pinch:{startDistance:number;startZoom:number;moved:boolean}|undefined;
   const clampZoom=(value:number)=>Math.max(0.75,Math.min(2.6,value));
   const distanceBetween=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
-  const applyZoom=(nextZoom:number)=>{
+  // Declared as a function so the hamlet focus tween can call it before this
+  // point in the module body.
+  function applyZoom(nextZoom:number){
     const clamped=clampZoom(nextZoom);if(Math.abs(clamped-zoom)<0.0001)return;
     const scale=zoom/clamped;
     const centerX=(camera.orthoLeft!+camera.orthoRight!)/2,centerY=(camera.orthoTop!+camera.orthoBottom!)/2;
@@ -271,19 +378,21 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     camera.orthoTop=centerY+(camera.orthoTop!-centerY)*scale;
     camera.orthoBottom=centerY+(camera.orthoBottom!-centerY)*scale;
     zoom=clamped;clampCameraTarget();requestDraw();
-  };
-  type PickTarget={kind:'post'|'feature';id:string};
+  }
+  type PickTarget={kind:'post'|'feature'|'friend'|'diary';id:string};
   function pick(event:PointerEvent):PickTarget|undefined{
     const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
     // Pick ALL real solid surfaces. Roof/terrain/tree occlusion is respected;
     // a hidden wall can never be clicked through another object.
     const hit=scene.pick(x,y,m=>m.isPickable&&m.isVisible);
-    const metadata=hit?.hit?hit.pickedMesh?.metadata as {postId?:string;featureId?:string}|undefined:undefined;
+    const metadata=hit?.hit?hit.pickedMesh?.metadata as {postId?:string;featureId?:string;friendId?:string;diaryId?:string}|undefined:undefined;
+    if(metadata?.friendId)return {kind:'friend',id:metadata.friendId};
+    if(metadata?.diaryId)return {kind:'diary',id:metadata.diaryId};
     if(metadata?.featureId)return {kind:'feature',id:metadata.featureId};
     if(metadata?.postId)return {kind:'post',id:metadata.postId};
     return undefined;
   }
-  const clearHover=()=>{lastHover=undefined;callbacks().onHoverPost(undefined);callbacks().onHoverFeature(undefined);};
+  const clearHover=()=>{lastHover=undefined;callbacks().onHoverPost(undefined);callbacks().onHoverFeature(undefined);callbacks().onHoverFriend(undefined);callbacks().onHoverDiary(undefined);};
   const onWheel=(e:WheelEvent)=>{e.preventDefault();applyZoom(zoom-e.deltaY*0.0015);clearHover();};
   const onMove=(e:PointerEvent)=>{
     if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
@@ -319,6 +428,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       lastHover=key;
       callbacks().onHoverPost(target?.kind==='post'?target.id:undefined,target?.kind==='post'?{x:e.clientX,y:e.clientY}:undefined);
       callbacks().onHoverFeature(target?.kind==='feature'?target.id:undefined,target?.kind==='feature'?{x:e.clientX,y:e.clientY}:undefined);
+      callbacks().onHoverFriend(target?.kind==='friend'?target.id:undefined,target?.kind==='friend'?{x:e.clientX,y:e.clientY}:undefined);
+      callbacks().onHoverDiary(target?.kind==='diary'?target.id:undefined,target?.kind==='diary'?{x:e.clientX,y:e.clientY}:undefined);
     }
   };
   const onLeave=(e:PointerEvent)=>{if(e.pointerType!=='mouse')return;clearHover();if(!down)canvas.style.cursor='grab';};
@@ -349,6 +460,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     if(select&&!down.moved&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<7){
       const target=pick(e);
       if(target?.kind==='feature')callbacks().onOpenFeature(target.id);
+      else if(target?.kind==='diary')callbacks().onSelectDiary(target.id);
+      else if(target?.kind==='friend')callbacks().onSelectFriend(target.id);
       else if(target?.kind==='post')callbacks().onSelectPost(target.id,e.pointerType);
       else clearHover();
     }
@@ -372,6 +485,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     if(disposed||!inView||!visible)return;
     const now=performance.now();if(now-lastFrame<(mobile?1000/24:1000/30))return;
     const dt=Math.min(0.05,lastFrame?(now-lastFrame)/1000:0.016);lastFrame=now;elapsed+=dt;
+    tickFocus(now);
     const slot=Math.floor(Date.now()/900000);
     if(slot!==weatherSlot){weatherSlot=slot;rainy=weatherIsPrecipitating(layout.seed,slot);populate();lighting();}
     if(!state.reducedMotion)tickLife(citizens,dt,layout);

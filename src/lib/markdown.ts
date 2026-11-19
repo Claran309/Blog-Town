@@ -195,7 +195,14 @@ export async function renderArticleMarkdown(markdown: string, options: MarkdownO
 
   const plain = new Marked({ gfm: true });
   const searchText = stripHtml(plain.parse(markdown, { async: false }) as string).replace(/\s+/g, ' ').trim();
-  const cjkCount = (searchText.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) ?? []).length;
-  const latinCount = (searchText.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) ?? []).length;
+  // `wordCount` must match the classic blog so the accumulated total does not
+  // jump when the same archive is read on either site. The classic counter ran
+  // on the raw Markdown with fenced blocks and inline code stripped, so code
+  // samples are not counted as prose. `searchText` keeps the full rendered
+  // text because full-text search should still find code.
+  const proseSource = markdown.replace(/```[\s\S]*?```/g, '').replace(/`[^`]+`/g, '');
+  const cjkPattern = /[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u3000-\u303f\uff00-\uffef]/g;
+  const cjkCount = (proseSource.match(cjkPattern) ?? []).length;
+  const latinCount = proseSource.replace(cjkPattern, ' ').split(/\s+/).filter((word) => word.trim().length > 0).length;
   return { sections, searchText, wordCount: cjkCount + latinCount, readingTime: Math.max(1, Math.ceil(cjkCount / 300 + latinCount / 220)) };
 }

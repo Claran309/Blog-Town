@@ -43,6 +43,14 @@ export interface LayoutPost {
   date?: string;
 }
 
+export interface LayoutFriend {
+  id: string;
+}
+
+export interface LayoutDiaryEntry {
+  id: string;
+}
+
 export type TownEntityKind = 'farm' | 'fence' | 'shrub';
 
 export interface TownEntity {
@@ -64,9 +72,67 @@ export interface TownFeature {
   z: number;
   width: number;
   depth: number;
+  /** Yaw in radians so a landmark can face the diorama camera. */
+  rotation?: number;
   title: string;
   summary: string;
   href: string;
+}
+
+/**
+ * A friend's house in the outlying hamlet. Huts are laid out on an arc east of
+ * the town core so the settlement reads as a separate neighbourhood instead of
+ * another row of article buildings.
+ */
+export interface TownFriendHut {
+  /** Matches FriendLink.id in the site config. */
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  rotation: number;
+  accent: number;
+}
+
+export interface TownHamlet {
+  id: string;
+  kind: 'friends';
+  x: number;
+  z: number;
+  radius: number;
+  huts: TownFriendHut[];
+  /** Dirt track from the town's east side into the hamlet green. */
+  path: Point[];
+  /** Rectangular reservation that keeps article lots and props out of the hamlet. */
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+}
+
+/**
+ * One notice board in the diary district. Each short note gets its own board,
+ * mirroring how every article gets its own building: the town stays readable
+ * as "one place, one entry" instead of hiding all notes behind a single prop.
+ */
+export interface TownDiaryBoard {
+  /** Matches DiaryEntry.id. */
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  rotation: number;
+  /** Stable accent index so a board keeps its colour across builds. */
+  accent: number;
+}
+
+export interface TownDiaryDistrict {
+  id: string;
+  kind: 'diary';
+  x: number;
+  z: number;
+  boards: TownDiaryBoard[];
+  /** Bounds that keep article lots and props out of the district. */
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
 
 export interface TownLayout {
@@ -78,6 +144,10 @@ export interface TownLayout {
   reservedPlots: TownPlot[];
   /** Non-article landmarks such as About or future civic buildings. */
   features: TownFeature[];
+  /** Outlying friend hamlet, when the site has friend links. */
+  hamlet?: TownHamlet;
+  /** Diary notice-board district, when the site has short notes. */
+  diary?: TownDiaryDistrict;
   center: Point;
 }
 
@@ -106,6 +176,124 @@ export const townFeatures: TownFeature[] = [
     href: '/about/',
   },
 ];
+
+// The hamlet sits outside the default diorama framing on purpose: the town is
+// already full, and the agreed interaction is "choose a neighbour, then the
+// camera travels out to their house". It still stays inside the camera pan
+// bounds so every hut can be centred.
+const HAMLET_CENTER = { x: 21.5, z: -16.5 };
+const HAMLET_RADIUS = 6.2;
+// A shallow south-facing cul-de-sac: the middle huts sit furthest south while
+// the two ends curl back toward the town, so the settlement opens toward the
+// plaza instead of closing into a second ring.
+const HAMLET_START_ANGLE = Math.PI * 200 / 180;
+const HAMLET_END_ANGLE = Math.PI * 340 / 180;
+const HAMLET_HUT_WIDTH = 1.44;
+const HAMLET_HUT_DEPTH = 1.08;
+
+// Leaves the town near the south-east corner of the built-up area, clears the
+// orchard, then curves into the hamlet green.
+const HAMLET_PATH: Point[] = [
+  { x: 6.4, z: -12.6 },
+  { x: 9.6, z: -13.6 },
+  { x: 12.4, z: -14.6 },
+  { x: 15.0, z: -15.6 },
+  { x: 17.4, z: -16.4 },
+  { x: 19.6, z: -16.6 },
+];
+
+const hamletBoundsFor = (center: Point, radius: number) => ({
+  minX: center.x - radius - HAMLET_HUT_WIDTH,
+  maxX: center.x + radius + HAMLET_HUT_WIDTH,
+  minZ: center.z - radius - HAMLET_HUT_WIDTH,
+  maxZ: center.z + radius + HAMLET_HUT_WIDTH,
+});
+
+/**
+ * Lays the friend hamlet on a shallow arc east of the town core. Huts face the
+ * town centre so the settlement reads as a row of neighbours looking back at
+ * the plaza rather than a second ring of article buildings.
+ */
+export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined => {
+  if (!friendIds.length) return undefined;
+  const span = HAMLET_START_ANGLE - HAMLET_END_ANGLE;
+  const huts: TownFriendHut[] = friendIds.map((id, index) => {
+    const t = friendIds.length === 1 ? 0.5 : index / (friendIds.length - 1);
+    const angle = HAMLET_START_ANGLE - span * t;
+    const x = HAMLET_CENTER.x + Math.cos(angle) * HAMLET_RADIUS;
+    const z = HAMLET_CENTER.z + Math.sin(angle) * HAMLET_RADIUS;
+    return {
+      id,
+      x: Number(x.toFixed(3)),
+      z: Number(z.toFixed(3)),
+      width: HAMLET_HUT_WIDTH,
+      depth: HAMLET_HUT_DEPTH,
+      // Face the hamlet's own green so the row reads as a shared courtyard.
+      rotation: Math.atan2(HAMLET_CENTER.x - x, HAMLET_CENTER.z - z),
+      accent: index % 5,
+    };
+  });
+  return {
+    id: 'friend-hamlet',
+    kind: 'friends',
+    x: HAMLET_CENTER.x,
+    z: HAMLET_CENTER.z,
+    radius: HAMLET_RADIUS,
+    huts,
+    path: HAMLET_PATH,
+    bounds: hamletBoundsFor(HAMLET_CENTER, HAMLET_RADIUS),
+  };
+};
+
+// The diary district sits on the open west field, separated from the article
+// streets by a short walk. Boards face the same camera angle as the town so
+// their pinned notes stay readable from the default framing.
+// Inside the default diorama framing (roughly x ±20, z ±16) but on the quiet
+// north-west green, away from the article streets that would hide the boards.
+const DIARY_CENTER = { x: 13.5, z: -5.0 };
+const DIARY_COLUMNS = 3;
+const DIARY_ROWS = 3;
+const DIARY_STEP_X = 2.30;
+const DIARY_STEP_Z = 1.95;
+const DIARY_BOARD_WIDTH = 1.45;
+const DIARY_BOARD_DEPTH = 0.66;
+const DIARY_ROTATION = Math.PI / 2 - Math.PI * 0.68;
+
+export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict | undefined => {
+  if (!entryIds.length) return undefined;
+  const boards: TownDiaryBoard[] = entryIds.map((id, index) => {
+    const column = index % DIARY_COLUMNS;
+    const row = Math.floor(index / DIARY_COLUMNS);
+    const x = DIARY_CENTER.x + (column - (DIARY_COLUMNS - 1) / 2) * DIARY_STEP_X;
+    const z = DIARY_CENTER.z + (row - (DIARY_ROWS - 1) / 2) * DIARY_STEP_Z;
+    return {
+      id,
+      x: Number(x.toFixed(3)),
+      z: Number(z.toFixed(3)),
+      width: DIARY_BOARD_WIDTH,
+      depth: DIARY_BOARD_DEPTH,
+      rotation: DIARY_ROTATION,
+      accent: index % 4,
+    };
+  });
+  // The reservation covers the whole grid so article lots and decoration never
+  // squeeze between boards, and the camera can frame the district as one place.
+  const halfW = ((DIARY_COLUMNS - 1) / 2) * DIARY_STEP_X + DIARY_BOARD_WIDTH / 2;
+  const halfD = ((DIARY_ROWS - 1) / 2) * DIARY_STEP_Z + DIARY_BOARD_DEPTH / 2;
+  return {
+    id: 'diary-district',
+    kind: 'diary',
+    x: DIARY_CENTER.x,
+    z: DIARY_CENTER.z,
+    boards,
+    bounds: {
+      minX: DIARY_CENTER.x - halfW - 0.6,
+      maxX: DIARY_CENTER.x + halfW + 0.6,
+      minZ: DIARY_CENTER.z - halfD - 0.6,
+      maxZ: DIARY_CENTER.z + halfD + 0.6,
+    },
+  };
+};
 
 const worldBounds: WorldRegion = {
   id: 'world-buildable',
@@ -471,8 +659,28 @@ function prepareLots(seed: string) {
   return { candidates, ringCapacity, plotWidth, plotDepth };
 }
 
-export const createTownLayout = (seed = 'river-bend-demo-v2', posts: LayoutPost[] = []): TownLayout => {
+/**
+ * Landmarks are authored, not allocated, so they must never be pushed onto an
+ * existing article building. This uses a tighter clearance than BUILDING_GAP:
+ * article lots keep a generous margin for readability, while a civic prop such
+ * as a notice board only needs to clear the wall itself.
+ */
+const LANDMARK_CLEARANCE = 0.24;
+const collidesWithLandmark = (
+  plot: { x: number; z: number; width: number; depth: number },
+  landmark: { x: number; z: number; width: number; depth: number },
+) => Math.abs(plot.x - landmark.x) < (plot.width + landmark.width) / 2 + LANDMARK_CLEARANCE
+  && Math.abs(plot.z - landmark.z) < (plot.depth + landmark.depth) / 2 + LANDMARK_CLEARANCE;
+
+export const createTownLayout = (
+  seed = 'river-bend-demo-v2',
+  posts: LayoutPost[] = [],
+  friends: LayoutFriend[] = [],
+  diary: LayoutDiaryEntry[] = [],
+): TownLayout => {
   const groups = groupPosts(posts);
+  const hamlet = createTownHamlet(friends.map((friend) => friend.id));
+  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id));
   const presets = stableArticlePlots[seed] ?? {};
   const orderedGroups = [...groups].sort((a, b) => {
     const aPreset = presets[groupKey(a)];
@@ -536,6 +744,10 @@ export const createTownLayout = (seed = 'river-bend-demo-v2', posts: LayoutPost[
     // buffer protects the currently rendered world from decorative overlap.
     if (reservedPlots.length >= Math.max(96, groups.length + 48)) break;
     if (!buildable || reservedPlots.some(other => overlaps({ x: slot.x, z: slot.z, width: plotWidth, depth: plotDepth }, other))) continue;
+    // An authored landmark always wins over a future empty lot.
+    if (townFeatures.some((feature) => collidesWithLandmark({ x: slot.x, z: slot.z, width: plotWidth, depth: plotDepth }, feature))) continue;
+    if (hamlet?.huts.some((hut) => collidesWithLandmark({ x: slot.x, z: slot.z, width: plotWidth, depth: plotDepth }, hut))) continue;
+    if (diaryDistrict?.boards.some((board) => collidesWithLandmark({ x: slot.x, z: slot.z, width: plotWidth, depth: plotDepth }, board))) continue;
     reservedPlots.push({
       id: `reserved-building-lot-${reservedPlots.length + 1}`,
       x: slot.x, z: slot.z, width: plotWidth, depth: plotDepth,
@@ -543,5 +755,26 @@ export const createTownLayout = (seed = 'river-bend-demo-v2', posts: LayoutPost[
       seedIndex: reservedPlots.length,
     });
   }
-  return { seed, regions: worldRegions, entities: townEntities, plots, reservedPlots, features: townFeatures, center: { x: 0, z: 0 } };
+
+  // A landmark that lands on an article building would silently delete a
+  // readable building from the town, so fail the build instead of shipping it.
+  for (const plot of plots) {
+    for (const feature of townFeatures) {
+      if (collidesWithLandmark(plot, feature)) {
+        throw new Error(`Landmark "${feature.id}" collides with article building "${plot.postId}" at (${plot.x}, ${plot.z}).`);
+      }
+    }
+    for (const hut of hamlet?.huts ?? []) {
+      if (collidesWithLandmark(plot, hut)) {
+        throw new Error(`Friend hut "${hut.id}" collides with article building "${plot.postId}" at (${plot.x}, ${plot.z}).`);
+      }
+    }
+    for (const board of diaryDistrict?.boards ?? []) {
+      if (collidesWithLandmark(plot, board)) {
+        throw new Error(`Diary board "${board.id}" collides with article building "${plot.postId}" at (${plot.x}, ${plot.z}).`);
+      }
+    }
+  }
+
+  return { seed, regions: worldRegions, entities: townEntities, plots, reservedPlots, features: townFeatures, hamlet, diary: diaryDistrict, center: { x: 0, z: 0 } };
 };

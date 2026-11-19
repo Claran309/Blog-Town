@@ -175,6 +175,78 @@ for (let index = 0; index < layout.plots.length; index += 1) {
   }
 }
 
+// Authored landmarks and the friend hamlet must never be pushed onto a
+// building. Article lots keep a generous readability margin, so this check is
+// deliberately tighter than BUILDING_GAP.
+const collides = (plot, landmark, clearance = 0.24) =>
+  Math.abs(plot.x - landmark.x) < (plot.width + landmark.width) / 2 + clearance
+  && Math.abs(plot.z - landmark.z) < (plot.depth + landmark.depth) / 2 + clearance;
+const friends = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map((id) => ({ id }));
+const withFriends = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends);
+assert(withFriends.hamlet, 'friend hamlet was not created for a site with friend links');
+assert(withFriends.hamlet.huts.length === friends.length, 'friend hamlet must place one hut per friend');
+for (const plot of withFriends.plots) {
+for (const feature of withFriends.features) {
+  assert(feature.kind === 'about', `unexpected landmark kind ${feature.kind}`);
+  assert(feature.href.startsWith('/'), `${feature.id} landmark has no in-site destination`);
+}
+
+// Diary district: one board per short note, never overlapping article lots.
+const diaryIds = Array.from({ length: 9 }, (_, index) => `diary-${index + 1}`);
+const withDiary = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, diaryIds.map((id) => ({ id })));
+assert(withDiary.diary, 'diary district was not created for a site with short notes');
+assert(withDiary.diary.boards.length === diaryIds.length, 'diary district must place one board per note');
+for (const plot of withDiary.plots) {
+  for (const board of withDiary.diary.boards) {
+    assert(!collides(plot, board), `diary board ${board.id} collides with ${plot.postId}`);
+  }
+}
+for (let index = 0; index < withDiary.diary.boards.length; index += 1) {
+  for (let other = index + 1; other < withDiary.diary.boards.length; other += 1) {
+    const first = withDiary.diary.boards[index];
+    const second = withDiary.diary.boards[other];
+    const gap = Math.hypot(first.x - second.x, first.z - second.z);
+    assert(gap > (first.width + second.width) / 2, `diary boards ${first.id} and ${second.id} overlap`);
+  }
+}
+for (const notice of withDiary.diary.boards) {
+  assert(notice.x - notice.width / 2 > board.minX && notice.x + notice.width / 2 < board.maxX, `diary board ${notice.id} leaves the board on X`);
+  assert(notice.z - notice.depth / 2 > board.minZ && notice.z + notice.depth / 2 < board.maxZ, `diary board ${notice.id} leaves the board on Z`);
+}
+const noDiary = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, []);
+assert(!noDiary.diary, 'diary district must not exist without short notes');
+  for (const hut of withFriends.hamlet.huts) {
+    assert(!collides(plot, hut), `friend hut ${hut.id} collides with ${plot.postId}`);
+  }
+}
+for (const hut of withFriends.hamlet.huts) {
+  for (const entity of withFriends.entities) {
+    assert(!collides({ ...hut, width: hut.width, depth: hut.depth }, entity, 0.1), `friend hut ${hut.id} overlaps fixed ${entity.kind} ${entity.id}`);
+  }
+}
+// Every hut must stay inside the board and inside the camera's pan bounds so
+// the "select a neighbour, camera travels there" interaction can frame it.
+for (const hut of withFriends.hamlet.huts) {
+  assert(hut.x - hut.width / 2 > board.minX && hut.x + hut.width / 2 < board.maxX, `friend hut ${hut.id} leaves the board on X`);
+  assert(hut.z - hut.depth / 2 > board.minZ && hut.z + hut.depth / 2 < board.maxZ, `friend hut ${hut.id} leaves the board on Z`);
+}
+// Huts must be spread far enough apart to stay individually clickable, and the
+// hamlet lane has to physically reach the settlement green.
+for (let index = 0; index < withFriends.hamlet.huts.length; index += 1) {
+  for (let other = index + 1; other < withFriends.hamlet.huts.length; other += 1) {
+    const first = withFriends.hamlet.huts[index];
+    const second = withFriends.hamlet.huts[other];
+    const gap = Math.hypot(first.x - second.x, first.z - second.z);
+    assert(gap > (first.width + second.width) / 2, `friend huts ${first.id} and ${second.id} overlap (gap=${gap.toFixed(2)})`);
+  }
+}
+const laneEnd = withFriends.hamlet.path.at(-1);
+assert(Math.hypot(laneEnd.x - withFriends.hamlet.x, laneEnd.z - withFriends.hamlet.z) < withFriends.hamlet.radius + 1, 'hamlet lane does not reach the settlement');
+for (const feature of withFriends.features) {
+  assert(feature.kind === 'about' || feature.kind === 'diary', `unexpected landmark kind ${feature.kind}`);
+  assert(feature.href.startsWith('/'), `${feature.id} landmark has no in-site destination`);
+}
+
 console.log(JSON.stringify({
   corridorNormalY: normalY,
   townCenterRingInnerEdge: Number(ringInnerEdge.toFixed(3)),

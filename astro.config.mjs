@@ -10,6 +10,9 @@ export default defineConfig({
   // syntax-highlighting pass inside Astro's content loader.
   markdown: { syntaxHighlight: false },
   vite: {
+    // Local verification maps the production hostname onto the preview server
+    // so the analytics/view-counting code paths run without a deploy.
+    preview: { allowedHosts: ['claran-blog.work', 'www.claran-blog.work'] },
     build: {
       rolldownOptions: {
         output: {

@@ -427,21 +427,6 @@
       "permanent": true
     },
     {
-      "source": "/diary",
-      "destination": "https://classic.claran-blog.work/diary/",
-      "permanent": true
-    },
-    {
-      "source": "/diary/",
-      "destination": "https://classic.claran-blog.work/diary/",
-      "permanent": true
-    },
-    {
-      "source": "/diary/:path*",
-      "destination": "https://classic.claran-blog.work/diary/:path*",
-      "permanent": true
-    },
-    {
       "source": "/devices",
       "destination": "https://classic.claran-blog.work/devices/",
       "permanent": true
