@@ -557,7 +557,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
           </div>
         </section>}
         {surface === 'archive' && <ArchiveView posts={filteredPosts} onOpen={openArticle} />}
-        {surface === 'about' && <AboutView />}
+        {surface === 'about' && <AboutView counts={{ posts: posts.length, categories: categories.length, tags: tags.length }} />}
         {surface === 'article' && selectedPost && selectedSections && layout && <ArticleView colorMode={colorMode} navigation={navigation} post={selectedPost} sections={selectedSections} layout={layout} scrollRoot={mainSurfaceRef} onOpen={openArticle} seriesPosts={selectedPost.series ? sortedPosts.filter((post) => post.series === selectedPost.series).sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0)) : []} />}
         {surface === 'article' && selectedPost && !selectedSections && <ArticleLoading post={selectedPost} error={contentError === selectedPost.id} onRetry={() => { setContentError(undefined); setContentRetry((value) => value + 1); }} />}
         {surface === 'article' && !selectedPost && <EmptyView title="还没有选择文章" copy="从小镇或侧边栏打开一篇笔记吧。" action="回到小镇" onAction={() => navigate('town')} />}
@@ -894,37 +894,55 @@ const ABOUT_SECTIONS = [
   },
 ];
 
-function AboutView() {
+function AboutView({ counts }: { counts: { posts: number; categories: number; tags: number } }) {
   const activeSection = ABOUT_SECTIONS[0].id;
-  return <section className="article-page about-inapp">
-    <div className="article-layout">
-      <article>
-        <span className="section-eyebrow">TOWN RESIDENT · ABOUT</span>
+  return <section className="about-inapp">
+    <div className="about-inapp-main">
+      <header className="about-inapp-head">
+        <span className="about-inapp-eyebrow">TOWN RESIDENT · ABOUT</span>
         <h1>{siteConfig.profile.name}</h1>
-        <p className="article-dek">{siteConfig.profile.headline}</p>
-        <div className="article-meta"><span>关于</span><span>·</span><span>常驻居民</span><span>·</span><span>{ABOUT_SECTIONS.length} 段</span></div>
-        <figure className="article-cover about-cover"><img src={siteConfig.profile.avatar} alt={siteConfig.profile.name} /></figure>
-        <div className="article-body">
-          {ABOUT_SECTIONS.map((section) => <section className="article-section" key={section.id}>
-            <div className="article-heading-row level-1"><h2 id={section.id}>{section.title}</h2><span className="heading-level-marker" aria-hidden="true">#</span></div>
-            {section.paragraphs.map((text, index) => <p key={index}>{text}</p>)}
-          </section>)}
-          <section className="article-section">
-            <div className="article-heading-row level-1"><h2 id="about-links">找到我</h2><span className="heading-level-marker" aria-hidden="true">#</span></div>
-            <p>有想法、有问题、发现写错了，都可以从这里开始；也可以直接在下面的留言板留一句。</p>
-            <div className="about-links">
-              {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
-              <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
-            </div>
-          </section>
+        <p className="about-inapp-headline">{siteConfig.profile.headline}</p>
+      </header>
+      <section className="about-inapp-hero">
+        <div className="about-inapp-portrait">
+          <img src={siteConfig.profile.avatar} alt={siteConfig.profile.name} />
+          <span className="about-inapp-badge">CLARAN</span>
         </div>
-        {commentConfig.enabled && <Suspense fallback={<section id="article-comments" className="article-comments" aria-label="正在加载评论" />}><ArticleComments key="about" postId="about" commentPath="/about" title="关于 Claran" heading="留言板" intro="对博客、小镇或任何想法，都可以留在这里。" /></Suspense>}
-      </article>
-      <aside className="article-aside">
-        <span className="aside-eyebrow">ON THE MAP</span>
-        <AboutContents activeId={activeSection} />
-      </aside>
+        <div className="about-inapp-intro">
+          <p>{siteConfig.profile.bio}</p>
+          <div className="about-inapp-stats">
+            <div><strong>{counts.posts}</strong><span>文章</span></div>
+            <div><strong>{String(counts.categories).padStart(2, '0')}</strong><span>分类</span></div>
+            <div><strong>{String(counts.tags).padStart(2, '0')}</strong><span>标签</span></div>
+          </div>
+          <div className="about-inapp-links">
+            {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
+          </div>
+        </div>
+      </section>
+      <div className="about-inapp-grid">
+        {ABOUT_SECTIONS.map((section, index) => <section className={`about-inapp-card ${index === 1 ? 'is-accent' : ''}`} key={section.id} id={section.id}>
+          <span className="about-inapp-card-index">{String(index + 1).padStart(2, '0')}</span>
+          <h2>{section.title}</h2>
+          {section.paragraphs.map((text, paragraphIndex) => <p key={paragraphIndex}>{text}</p>)}
+          {index === 1 && <span className="about-inapp-card-ring" aria-hidden="true" />}
+        </section>)}
+        <section className="about-inapp-card" id="about-links">
+          <span className="about-inapp-card-index">04</span>
+          <h2>找到我</h2>
+          <p>有想法、有问题、发现写错了，都可以从这里开始；也可以直接在下面的留言板留一句。</p>
+          <div className="about-links">
+            {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
+            <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
+          </div>
+        </section>
+      </div>
+      {commentConfig.enabled && <div className="about-inapp-comments"><Suspense fallback={<section id="article-comments" className="article-comments" aria-label="正在加载评论" />}><ArticleComments key="about" postId="about" commentPath="/about" title="关于 Claran" heading="留言板" intro="对博客、小镇或任何想法，都可以留在这里。" /></Suspense></div>}
     </div>
+    <aside className="about-inapp-aside">
+      <span className="aside-eyebrow">ON THIS PAGE</span>
+      <AboutContents activeId={activeSection} />
+    </aside>
   </section>;
 }
 
