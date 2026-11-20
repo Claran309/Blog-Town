@@ -291,6 +291,9 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
 const DIARY_BOARD_WIDTH = 1.45;
 const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
+// Candidate distances from the road centreline, all on the house-free side.
+// Boards step further out rather than crossing the road.
+const DIARY_OFFSETS = [3.2, 4.0, 4.8, 5.6];
 const DIARY_ROW_NEAR = 2.15;
 const DIARY_ROW_FAR = 3.65;
 const DIARY_LANE_START = 6.4;
@@ -388,16 +391,22 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     }
     return false;
   };
+  // Every board sits on the same side of the road: the far side from the
+  // houses that front this street, so the row reads as one continuous line
+  // instead of weaving across the carriageway. On this road the houses occupy
+  // the southern edge, so boards always land north of the centreline.
   for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
     const point = laneAt(along);
     if (point.x > DIARY_MAX_X) break;
-    // Prefer the near side, but step across the road when a house occupies it.
-    const near = { along, offset: DIARY_ROW_NEAR };
-    const far = { along, offset: -DIARY_ROW_NEAR };
-    const nearPoint = { x: point.x + point.nx * near.offset, z: point.z + point.nz * near.offset };
-    const farPoint = { x: point.x + point.nx * far.offset, z: point.z + point.nz * far.offset };
-    if (!blocked(nearPoint.x, nearPoint.z)) slots.push(near);
-    else if (!blocked(farPoint.x, farPoint.z)) slots.push(far);
+    // Point the normal toward +Z once, so the offset never flips sides.
+    const sign = point.nz >= 0 ? 1 : -1;
+    for (const offset of DIARY_OFFSETS) {
+      const x = point.x + point.nx * offset * sign;
+      const z = point.z + point.nz * offset * sign;
+      if (blocked(x, z)) continue;
+      slots.push({ along, offset: offset * sign });
+      break;
+    }
   }
   // Drop slots that crowd the previous one so the row keeps an even rhythm.
   const spaced: typeof slots = [];
@@ -486,11 +495,15 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     if (!currentKey || currentKey === previousKey) continue;
     const along = (spaced[index - 1].along + spaced[index].along) / 2;
     const point = laneAt(along);
+    // Stand the divider behind the row (further from the road) so it never
+    // shares ground with a board.
+    const sign = point.nz >= 0 ? 1 : -1;
+    const offset = 5.9;
     months.push({
       key: currentKey,
       month: Number(currentKey.slice(5, 7)),
-      x: Number((point.x + point.nx * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
-      z: Number((point.z + point.nz * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
+      x: Number((point.x + point.nx * offset * sign).toFixed(3)),
+      z: Number((point.z + point.nz * offset * sign).toFixed(3)),
       rotation: 0,
     });
   }

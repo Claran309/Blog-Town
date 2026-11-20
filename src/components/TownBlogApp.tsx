@@ -727,6 +727,14 @@ function SidebarPostList({ posts, hoveredPostId, onHover, onOpenArticle }: { pos
 
 function SearchDropdown({ results, activeIndex, onHover, onOpen, onArchive, status, onRetry }: { results: TownPostSummary[]; activeIndex: number; onHover: (id?: string) => void; onOpen: (id: string) => void; onArchive: () => void; status: 'idle' | 'loading' | 'error'; onRetry: () => void }) { return <div className="search-dropdown"><span className="dropdown-label">SEARCHING THE TOWN · {status === 'loading' ? '…' : results.length}</span>{status === 'loading' ? <div className="empty-search" role="status" aria-live="polite">正在搜索全文…</div> : status === 'error' ? <div className="empty-search" role="alert">全文搜索暂时不可用。<button type="button" onClick={onRetry}>重新载入</button></div> : results.length ? results.map((post, index) => <a key={post.id} href={`/posts/${encodeURIComponent(post.id)}/`} className={`search-result ${index === activeIndex ? 'is-highlighted' : ''}`} onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHover(post.id); }} onClick={(event) => handleInternalClick(event, () => onOpen(post.id))}><span className="search-result-index">0{index + 1}</span><span><strong>{post.title}</strong><small>{post.category} · {post.readingTime} min</small></span>{icon('arrow')}</a>) : <div className="empty-search">没有找到相关笔记。</div>}{status === 'idle' && results.length > 0 && <a className="dropdown-full" href="/posts/" onClick={(event) => handleInternalClick(event, onArchive)}>查看全部结果 {icon('arrow')}</a>}</div>; }
 
+const isUsableAnchor = (anchor?: SceneAnchor): anchor is SceneAnchor =>
+  !!anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y);
+
+const clampAnchor = (anchor: SceneAnchor): SceneAnchor => ({
+  x: Math.min(Math.max(anchor.x, 12), window.innerWidth - 12),
+  y: Math.min(Math.max(anchor.y, 12), window.innerHeight - 12),
+});
+
 function TownTooltip({ post, anchor }: { post?: TownPostSummary; anchor?: SceneAnchor }) {
   if (!post || !anchor) return null;
   // The tooltip is fixed-positioned and 236px wide. When the anchor sits near
@@ -741,13 +749,15 @@ function TownTooltip({ post, anchor }: { post?: TownPostSummary; anchor?: SceneA
   </div>;
 }
 
-function FeatureTooltip({ feature, anchor }: { feature?: TownFeature; anchor?: SceneAnchor }) {
-  if (!feature || !anchor) return null;
+function FeatureTooltip({ feature, anchor: rawAnchor }: { feature?: TownFeature; anchor?: SceneAnchor }) {
+  if (!feature || !isUsableAnchor(rawAnchor)) return null;
+  const anchor = clampAnchor(rawAnchor);
   const flip = anchor.x + 236 + 15 > window.innerWidth;
   return <div className={`town-tooltip town-feature-tooltip ${flip ? 'is-flipped' : ''}`} style={{ left: anchor.x, top: anchor.y }}><div className="tooltip-meta"><span>{feature.kind === 'about' ? 'LANDMARK' : 'PLACE'}</span><span>点击进入</span></div><strong>{feature.title}</strong><p>{feature.summary}</p></div>; }
 
-function FriendTag({ friend, anchor }: { friend?: FriendLink; anchor?: SceneAnchor }) {
-  if (!friend || !anchor) return null;
+function FriendTag({ friend, anchor: rawAnchor }: { friend?: FriendLink; anchor?: SceneAnchor }) {
+  if (!friend || !isUsableAnchor(rawAnchor)) return null;
+  const anchor = clampAnchor(rawAnchor);
   const flip = anchor.x + 186 + 15 > window.innerWidth;
   return <div className={`town-tooltip town-friend-tag ${flip ? 'is-flipped' : ''}`} style={{ left: anchor.x, top: anchor.y }}>
     <div className="friend-tag-head"><span className="friend-tag-avatar"><img src={friend.avatar} alt="" loading="lazy" /></span><strong>{friend.nickname}</strong></div>
@@ -1091,8 +1101,9 @@ const ABOUT_SECTIONS = [
   },
 ];
 
-function DiaryTag({ entry, anchor, single, count }: { entry?: DiaryEntry; anchor?: SceneAnchor; single?: boolean; count: number }) {
-  if (!anchor) return null;
+function DiaryTag({ entry, anchor: rawAnchor, single, count }: { entry?: DiaryEntry; anchor?: SceneAnchor; single?: boolean; count: number }) {
+  if (!isUsableAnchor(rawAnchor)) return null;
+  const anchor = clampAnchor(rawAnchor);
   if (!entry && !single) return null;
   const flip = anchor.x + 236 + 15 > window.innerWidth;
   return <div className={`town-tooltip town-diary-tag ${flip ? 'is-flipped' : ''}`} style={{ left: anchor.x, top: anchor.y }}>

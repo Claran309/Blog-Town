@@ -331,39 +331,47 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     if(activeDiary)anchorDiary(activeDiary);
     requestDraw();
   }
+  // Project a world point to viewport coordinates. Returns undefined when the
+  // canvas has no measurable size yet: dividing by a zero render width yields
+  // NaN, and a NaN style offset makes the tooltip fall back to its static
+  // position (the bottom-left corner of the stage).
+  function projectToViewport(point:Vector3){
+    const rect=canvas.getBoundingClientRect();
+    const width=engine.getRenderWidth(),height=engine.getRenderHeight();
+    if(!rect.width||!rect.height||!width||!height)return undefined;
+    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(width,height));
+    const a={x:rect.left+p.x*rect.width/width,y:rect.top+p.y*rect.height/height};
+    return Number.isFinite(a.x)&&Number.isFinite(a.y)?a:undefined;
+  }
   function anchor(id:string){
     const house=houseByPostId.get(id);if(!house)return;
     const i=house.ids.indexOf(id),point=new Vector3(house.plot.x,GROUND_Y+(i+0.6)*FLOOR_HEIGHT,house.plot.z);
-    const rect=canvas.getBoundingClientRect();
-    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
-    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    const a=projectToViewport(point);
+    if(!a)return undefined;
     callbacks().onResolvePostAnchor(id,a);return a;
   }
   function anchorFeature(id:string){
     const feature=featureById.get(id);if(!feature)return;
     const point=new Vector3(feature.feature.x,GROUND_Y+feature.anchorY,feature.feature.z);
-    const rect=canvas.getBoundingClientRect();
-    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
-    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    const a=projectToViewport(point);
+    if(!a)return undefined;
     callbacks().onResolveFeatureAnchor(id,a);return a;
   }
   function anchorFriend(id:string){
     const hut=friendById.get(id);if(!hut)return;
     const point=new Vector3(hut.hut.x,GROUND_Y+hut.anchorY,hut.hut.z);
-    const rect=canvas.getBoundingClientRect();
-    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
-    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    const a=projectToViewport(point);
+    if(!a)return undefined;
     callbacks().onResolveFriendAnchor(id,a);return a;
   }
-
   function anchorDiary(id:string){
     const board=diaryById.get(id);if(!board)return;
     const point=new Vector3(board.board.x,GROUND_Y+board.anchorY,board.board.z);
-    const rect=canvas.getBoundingClientRect();
-    const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
-    const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
+    const a=projectToViewport(point);
+    if(!a)return undefined;
     callbacks().onResolveDiaryAnchor(id,a);return a;
   }
+
   // Camera travel for the hamlet. Pan is clamped to the same bounds as drag,
   // and the zoom floor keeps the hut readable without losing its neighbours.
   let focusAnimation:{fromX:number;fromZ:number;toX:number;toZ:number;fromZoom:number;toZoom:number;start:number;duration:number}|undefined;
