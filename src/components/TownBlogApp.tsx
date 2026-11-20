@@ -157,6 +157,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const [focusedDiaryId, setFocusedDiaryId] = useState<string>();
   // The reading card floats over the scene; null means closed.
   const [openDiaryId, setOpenDiaryId] = useState<string>();
+  // The reading card keeps its own anchor: hovering away must not move it.
+  const [cardAnchor, setCardAnchor] = useState<SceneAnchor>();
   // Paging bumps this so the camera re-focuses even on a repeat visit.
   const [diaryFocusRevision, setDiaryFocusRevision] = useState(0);
   // Selecting a neighbour keeps the list open while the camera travels out to
@@ -587,6 +589,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
     if (id === 'diary-all') { navigate('diary'); return; }
     setFocusedDiaryId(id);
     setDiaryFocusRevision((value) => value + 1);
+    setCardAnchor(diaryAnchor);
     setOpenDiaryId(id);
   };
   const selectScenePost = (id: string, pointerType?: string) => {
@@ -695,7 +698,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
           <h1 className="visually-hidden">{siteConfig.title} — {siteConfig.tagline}</h1>
           <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} diaryFocusRevision={diaryFocusRevision} diaryMode={diaryMode} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
           <p className="mobile-town-hint">点击建筑预览，再次点击或选择「阅读文章」打开；单指任意方向拖动小镇，双指捏合缩放。在小镇外滑动可浏览页面。</p>
-          {openDiaryEntryData && <DiaryReadingCard entry={openDiaryEntryData} index={openDiaryIndex} total={diaryOrder.length} anchor={diaryAnchor} onPrev={() => stepDiary(-1)} onNext={() => stepDiary(1)} onClose={() => setOpenDiaryId(undefined)} />}
+          {openDiaryEntryData && <DiaryReadingCard entry={openDiaryEntryData} index={openDiaryIndex} total={diaryOrder.length} anchor={cardAnchor} onPrev={() => stepDiary(-1)} onNext={() => stepDiary(1)} onClose={() => setOpenDiaryId(undefined)} />}
           <TownStatStrip stats={siteStats} totals={siteTotals} onAbout={() => navigate('about')} />
           <div className="town-mobile-support">
             <div className="town-caption"><span><i className="caption-dot" /> {siteConfig.title} · {SEASON_PROFILES[season].label}季小镇</span><span>建筑即文章 / {layout?.plots.length ?? 0} buildings / {posts.length} article floors</span><span className="caption-spacer" /><a href="/posts/" onClick={(event) => handleInternalClick(event, () => navigate('archive'))}>打开完整档案 {icon('arrow')}</a></div>
@@ -1155,10 +1158,23 @@ function DiaryReadingCard({ entry, index, total, anchor, onPrev, onNext, onClose
     };
   }, [onClose, onPrev, onNext]);
   // Sit above the board it belongs to, flipping below when there is no room.
+  // With no usable anchor the card stays centred rather than collapsing into
+  // the stage corner.
   const cardWidth = 420;
-  const left = anchor ? Math.min(Math.max(anchor.x, cardWidth / 2 + 12), window.innerWidth - cardWidth / 2 - 12) : window.innerWidth / 2;
-  const above = anchor ? anchor.y > 300 : true;
-  return <div className={`diary-reading-card ${above ? 'is-above' : 'is-below'}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="短日记内容" style={anchor ? { left, top: above ? anchor.y - 18 : anchor.y + 18 } : undefined}>
+  const usable = isUsableAnchor(anchor);
+  const safeAnchor = usable ? clampAnchor(anchor) : undefined;
+  const left = safeAnchor ? Math.min(Math.max(safeAnchor.x, cardWidth / 2 + 12), window.innerWidth - cardWidth / 2 - 12) : window.innerWidth / 2;
+  // Prefer above the board, but only if the whole card fits; otherwise place
+  // it below, and clamp so it never rides up under the top bar.
+  const cardHeight = 300;
+  const spaceAbove = safeAnchor ? safeAnchor.y - 60 : 0;
+  const above = safeAnchor ? spaceAbove > cardHeight + 40 : true;
+  const top = safeAnchor
+    ? (above
+      ? Math.max(70, safeAnchor.y - 18)
+      : Math.min(window.innerHeight - 40, safeAnchor.y + 18))
+    : undefined;
+  return <div className={`diary-reading-card ${above ? 'is-above' : 'is-below'}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="短日记内容" style={safeAnchor ? { left, top } : undefined}>
     <div className="diary-reading-head">
       <div className="diary-reading-meta"><span>{formatDate(entry.date)}</span>{entry.location && <span>{entry.location}</span>}{entry.mood && <em>{entry.mood}</em>}</div>
       <button type="button" className="diary-reading-close" aria-label="关闭" onClick={onClose}>{icon('close')}</button>

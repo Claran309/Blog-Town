@@ -398,8 +398,12 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
     const point = laneAt(along);
     if (point.x > DIARY_MAX_X) break;
-    // Point the normal toward +Z once, so the offset never flips sides.
-    const sign = point.nz >= 0 ? 1 : -1;
+    // Place every board on the far side of the road: the side facing away
+    // from the camera, so the row sits behind the carriageway instead of in
+    // front of it. The camera looks from (cos a, sin a) with a = 0.68 pi.
+    const awayX = Math.cos(Math.PI * 0.68) * -1;
+    const awayZ = Math.sin(Math.PI * 0.68) * -1;
+    const sign = point.nx * awayX + point.nz * awayZ >= 0 ? 1 : -1;
     for (const offset of DIARY_OFFSETS) {
       const x = point.x + point.nx * offset * sign;
       const z = point.z + point.nz * offset * sign;
