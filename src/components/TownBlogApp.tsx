@@ -527,11 +527,30 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   // Clicking a hut keeps the visitor in town: it pins that neighbour's card,
   // and the card carries the "visit" button. Only the list arrow opens a link.
   const openFriendCard = (id: string) => {
+    // First click pins the card; clicking the same hut again opens the site.
+    if (selectedFriendId === id) {
+      const friend = friendLinks.find((item) => item.id === id);
+      if (friend) window.open(friend.url, '_blank', 'noopener');
+      return;
+    }
     setSidebarPanel('friends');
     setSelectedFriendId(id);
     setHoveredFriendId(undefined);
     setFocusedFriendId(id);
   };
+  // Clicking anywhere outside the pinned card dismisses it.
+  useEffect(() => {
+    if (!selectedFriendId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest('.town-friend-tag') || target?.closest('.friend-row')) return;
+      setSelectedFriendId(undefined);
+      setFocusedFriendId(undefined);
+      setFriendAnchor(undefined);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, [selectedFriendId]);
   const onHoverFriend = (id?: string, anchor?: SceneAnchor) => {
     setHoveredFriendId(id);
     // Hover always previews the hut under the pointer; releasing the pointer
@@ -676,7 +695,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
           <h1 className="visually-hidden">{siteConfig.title} — {siteConfig.tagline}</h1>
           <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} diaryFocusRevision={diaryFocusRevision} diaryMode={diaryMode} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
           <p className="mobile-town-hint">点击建筑预览，再次点击或选择「阅读文章」打开；单指任意方向拖动小镇，双指捏合缩放。在小镇外滑动可浏览页面。</p>
-          {openDiaryEntryData && <DiaryReadingCard entry={openDiaryEntryData} index={openDiaryIndex} total={diaryOrder.length} onPrev={() => stepDiary(-1)} onNext={() => stepDiary(1)} onClose={() => setOpenDiaryId(undefined)} />}
+          {openDiaryEntryData && <DiaryReadingCard entry={openDiaryEntryData} index={openDiaryIndex} total={diaryOrder.length} anchor={diaryAnchor} onPrev={() => stepDiary(-1)} onNext={() => stepDiary(1)} onClose={() => setOpenDiaryId(undefined)} />}
           <TownStatStrip stats={siteStats} totals={siteTotals} onAbout={() => navigate('about')} />
           <div className="town-mobile-support">
             <div className="town-caption"><span><i className="caption-dot" /> {siteConfig.title} · {SEASON_PROFILES[season].label}季小镇</span><span>建筑即文章 / {layout?.plots.length ?? 0} buildings / {posts.length} article floors</span><span className="caption-spacer" /><a href="/posts/" onClick={(event) => handleInternalClick(event, () => navigate('archive'))}>打开完整档案 {icon('arrow')}</a></div>
@@ -733,7 +752,7 @@ function FriendTag({ friend, anchor }: { friend?: FriendLink; anchor?: SceneAnch
   return <div className={`town-tooltip town-friend-tag ${flip ? 'is-flipped' : ''}`} style={{ left: anchor.x, top: anchor.y }}>
     <div className="friend-tag-head"><span className="friend-tag-avatar"><img src={friend.avatar} alt="" loading="lazy" /></span><strong>{friend.nickname}</strong></div>
     {friend.description && <p>{friend.description}</p>}
-    <a href={friend.url} target="_blank" rel="noreferrer noopener">去串门 {icon('external')}</a>
+    <a className="friend-tag-visit" href={friend.url} target="_blank" rel="noreferrer noopener">去串门 {icon('external')}</a>
   </div>;
 }
 
@@ -1097,8 +1116,9 @@ function DiaryTag({ entry, anchor, single, count }: { entry?: DiaryEntry; anchor
  * town away, so the visitor can keep panning while they read, and clicking
  * anywhere outside it closes the card.
  */
-function DiaryReadingCard({ entry, index, total, onPrev, onNext, onClose }: { entry: DiaryEntry; index: number; total: number; onPrev: () => void; onNext: () => void; onClose: () => void }) {
+function DiaryReadingCard({ entry, index, total, anchor, onPrev, onNext, onClose }: { entry: DiaryEntry; index: number; total: number; anchor?: SceneAnchor; onPrev: () => void; onNext: () => void; onClose: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const mountedAt = useRef(performance.now());
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { onClose(); return; }
@@ -1106,18 +1126,28 @@ function DiaryReadingCard({ entry, index, total, onPrev, onNext, onClose }: { en
       if (event.key === 'ArrowRight') onNext();
     };
     const onPointerDown = (event: PointerEvent) => {
+      // Ignore the very click that opened the card.
+      if (performance.now() - mountedAt.current < 250) return;
       if (!panelRef.current?.contains(event.target as Node)) onClose();
     };
     window.addEventListener('keydown', onKey);
-    // Capture phase so a click on the canvas closes the card instead of
-    // selecting the building underneath it.
-    window.addEventListener('pointerdown', onPointerDown, true);
+    // The sidebar sits in a fixed layer and can swallow pointerdown before it
+    // reaches window, so listen for both pointerdown and click.
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('mousedown', onPointerDown as unknown as (event: MouseEvent) => void);
+    window.addEventListener('click', onPointerDown as unknown as (event: MouseEvent) => void);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('mousedown', onPointerDown as unknown as (event: MouseEvent) => void);
+      window.removeEventListener('click', onPointerDown as unknown as (event: MouseEvent) => void);
     };
   }, [onClose, onPrev, onNext]);
-  return <div className="diary-reading-card" ref={panelRef} role="dialog" aria-modal="false" aria-label="短日记内容">
+  // Sit above the board it belongs to, flipping below when there is no room.
+  const cardWidth = 420;
+  const left = anchor ? Math.min(Math.max(anchor.x, cardWidth / 2 + 12), window.innerWidth - cardWidth / 2 - 12) : window.innerWidth / 2;
+  const above = anchor ? anchor.y > 300 : true;
+  return <div className={`diary-reading-card ${above ? 'is-above' : 'is-below'}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="短日记内容" style={anchor ? { left, top: above ? anchor.y - 18 : anchor.y + 18 } : undefined}>
     <div className="diary-reading-head">
       <div className="diary-reading-meta"><span>{formatDate(entry.date)}</span>{entry.location && <span>{entry.location}</span>}{entry.mood && <em>{entry.mood}</em>}</div>
       <button type="button" className="diary-reading-close" aria-label="关闭" onClick={onClose}>{icon('close')}</button>

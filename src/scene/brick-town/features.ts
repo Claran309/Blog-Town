@@ -108,26 +108,34 @@ function drawFresh(kit: BrickKit, id: string, postTop: number, board: TownDiaryB
   return postTop + 2.05;
 }
 
-/** Middle age: paint still there, a band of weathering, one note askew. */
+/** Middle age: paint has gone chalky, the hood is gone and vines climb. */
 function drawMid(kit: BrickKit, id: string, postTop: number, board: TownDiaryBoard): number {
-  const paints = [C.coral, C.teal, C.yellow, C.blue];
-  const paint = paints[board.accent % paints.length];
+  // No saturated paint: mid boards read as "faded", so the frame is a washed
+  // sand tone rather than the fresh accent colour. That single change is what
+  // separates new from mid at a glance.
+  const faded = [C.sand, C.tan, C.cream, C.sand][board.accent % 4];
   for (const side of [-1, 1]) {
-    kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
-    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, paint, 0, id);
-    // Weathering creeps up from the foot of each post.
-    kit.box(side * 0.44, postTop + 0.30, 0, 0.12, 0.42, 0.12, C.sand, 0, id);
+    kit.box(side * 0.44, postTop + 0.88, 0, 0.12, 1.82, 0.12, C.brown, 0, id);
+    // Weathering climbs the posts in stacked bands.
+    for (let band = 0; band < 3; band += 1) {
+      kit.box(side * 0.44, postTop + 0.24 + band * 0.22, 0, 0.13, 0.16, 0.13, band % 2 ? C.moss : C.sand, 0, id);
+    }
+    kit.box(side * 0.44, postTop + 1.84, 0, 0.16, 0.07, 0.16, faded, 0, id);
   }
-  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, paint, 0, id);
-  kit.box(0, postTop + 1.05, 0, 1.11, 0.18, 0.085, C.sand, 0, id);
-  kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.cream, 0, id);
-  pinnedNotes(kit, id, postTop + 1.34, [
+  // The hood is gone; only its fixing holes remain.
+  kit.box(0, postTop + 1.78, 0, 1.02, 0.03, 0.06, C.brown, 0, id);
+  kit.box(0, postTop + 1.32, 0, 1.10, 0.70, 0.08, faded, 0, id);
+  // A wide chalky wash across the lower third.
+  kit.box(0, postTop + 1.10, 0.045, 1.11, 0.26, 0.085, C.ivory, 0, id);
+  kit.box(0, postTop + 1.32, 0.05, 1.02, 0.62, 0.03, C.cream, 0, id);
+  // One corner of the panel has chipped away.
+  kit.box(-0.46, postTop + 1.58, 0.055, 0.18, 0.20, 0.04, C.brown, 0, id);
+  pinnedNotes(kit, id, postTop + 1.32, [
     { x: -0.26, y: 0.12, roll: -0.03, w: 0.28, h: 0.22, color: C.yellow },
-    { x: 0.08, y: 0.14, roll: 0.14, w: 0.24, h: 0.24, color: C.ivory },
-    { x: 0.28, y: -0.06, roll: -0.10, w: 0.22, h: 0.18, color: C.cream },
+    { x: 0.08, y: 0.14, roll: 0.18, w: 0.24, h: 0.24, color: C.ivory },
+    { x: 0.28, y: -0.06, roll: -0.14, w: 0.22, h: 0.18, color: C.cream },
   ]);
-  kit.box(0, postTop + 1.74, 0, 1.22, 0.06, 0.24, paint, 0, id);
-  return postTop + 2.05;
+  return postTop + 2.02;
 }
 
 /** Old: bare timber, board seams, one faded note hanging crooked. */
@@ -136,17 +144,20 @@ function drawAged(kit: BrickKit, id: string, postTop: number): number {
     kit.box(side * 0.44, postTop + 0.88, 0, 0.12, 1.82, 0.12, C.brown, 0, id);
     kit.box(side * 0.44, postTop + 1.84, 0, 0.16, 0.07, 0.16, C.tan, 0, id);
   }
+  // Light weathered timber, not dark brown: at diorama distance a dark face
+  // merges into a shapeless block, so the panel stays pale and high contrast.
   kit.box(0, postTop + 1.32, 0, 1.10, 0.70, 0.09, C.brown, 0, id);
-  kit.box(0, postTop + 1.32, 0.055, 1.02, 0.62, 0.03, C.tan, 0, id);
-  // Vertical plank seams break the face into boards.
+  kit.box(0, postTop + 1.32, 0.055, 1.04, 0.64, 0.03, '#d8c6a2', 0, id);
+  // Thin plank seams keep it reading as boards without darkening the face.
   for (const x of [-0.30, 0.02, 0.32]) {
-    kit.box(x, postTop + 1.32, 0.075, 0.025, 0.62, 0.02, C.brown, 0, id);
+    kit.box(x, postTop + 1.32, 0.078, 0.018, 0.64, 0.015, '#b09a74', 0, id);
   }
+  // Two pale notes, clearly visible against the timber.
   pinnedNotes(kit, id, postTop + 1.32, [
-    { x: -0.12, y: 0.10, roll: -0.19, w: 0.26, h: 0.20, color: C.sand },
-    { x: 0.20, y: -0.09, roll: 0.12, w: 0.22, h: 0.17, color: C.sand },
+    { x: -0.16, y: 0.10, roll: -0.19, w: 0.30, h: 0.23, color: C.ivory },
+    { x: 0.20, y: -0.10, roll: 0.14, w: 0.26, h: 0.20, color: C.cream },
   ]);
-  // The hood has lost a slat and sags on one side.
+  // Hood lost a slat and sags on one side.
   kit.box(-0.10, postTop + 1.70, 0, 0.92, 0.05, 0.22, C.tan, 0.04, id);
   return postTop + 2.0;
 }
@@ -157,14 +168,15 @@ function drawArchived(kit: BrickKit, id: string, postTop: number): number {
     kit.box(side * 0.44, postTop + 0.88, 0, 0.12, 1.82, 0.12, C.brown, 0, id);
     kit.box(side * 0.44, postTop + 1.84, 0, 0.16, 0.07, 0.16, C.tan, 0, id);
   }
-  // Back face: horizontal battens instead of a painted panel.
-  for (const y of [1.02, 1.24, 1.46, 1.68]) {
-    kit.box(0, postTop + y, -0.03, 1.06, 0.10, 0.06, C.tan, 0, id);
+  // Back face: pale battens over a light backing, so the turned-away cluster
+  // still reads as boards instead of dark slabs.
+  kit.box(0, postTop + 1.32, -0.02, 1.08, 0.70, 0.05, '#cbb896', 0, id);
+  for (const y of [1.04, 1.28, 1.52]) {
+    kit.box(0, postTop + y, -0.06, 1.06, 0.13, 0.06, '#b6a27e', 0, id);
   }
-  kit.box(0, postTop + 1.32, 0, 1.08, 0.70, 0.05, C.brown, 0, id);
-  // A small paper tag on a string.
-  kit.box(0.10, postTop + 1.10, -0.07, 0.30, 0.22, 0.02, C.ivory, 0.12, id);
-  kit.box(0.10, postTop + 1.24, -0.075, 0.02, 0.14, 0.02, C.navy, 0, id);
+  // A paper tag on a string identifies the file.
+  kit.box(0.16, postTop + 1.14, -0.10, 0.34, 0.24, 0.02, C.ivory, 0.12, id);
+  kit.box(0.16, postTop + 1.30, -0.11, 0.02, 0.14, 0.02, C.navy, 0, id);
   // Stacked crates at the foot.
   kit.box(-0.55, H / 3 + 0.16, 0.18, 0.42, 0.32, 0.38, C.tan, 0.2, id);
   kit.box(-0.52, H / 3 + 0.44, 0.20, 0.34, 0.26, 0.32, C.brown, -0.12, id);
@@ -185,40 +197,25 @@ export function buildDiaryMonthMarker(scene: Scene, marker: TownDiaryMonthMarker
   root.rotation.y = marker.rotation;
   const kit = new BrickKit(scene, root, 'plastic', !mobile);
   const id = `diary-month:${marker.key}`;
-  // A low stone plinth carries two squat digits side by side. Stacking them
-  // vertically made a column that towered over the boards; this reads as a
-  // milestone instead.
+  // A small signpost, not a sculpture: a low post with a coloured plate whose
+  // band count encodes the month (one band per month). Brick digits at this
+  // scale read as noise, so the count is the readable signal.
   kit.brick(0, 0, 0, 2, 2, C.roadLight, H / 3, false, id);
-  const cell = 0.24;
-  const base = H / 3 + H * 0.4;
-  const digitWidth = cell * 2;
-  const digitHeight = cell * 4;
-  // Backing plate so the digits stay legible against grass.
-  kit.box(0, base + digitHeight / 2, -0.10, digitWidth * 2 + cell * 1.2, digitHeight + cell * 0.6, 0.06, C.cream, 0, id);
-  [marker.digits[0], marker.digits[1]].forEach((digit, digitIndex) => {
-    const originX = (digitIndex - 0.5) * (digitWidth + cell * 0.6);
-    digit.forEach((row, rowIndex) => {
-      for (let col = 0; col < row.length; col += 1) {
-        if (row[col] !== '#') continue;
-        kit.brick(
-          originX + (col - 0.5) * cell,
-          base + (3 - rowIndex) * cell,
-          0.02,
-          1,
-          1,
-          C.blue,
-          cell,
-          false,
-          id,
-        );
-      }
-    });
-  });
+  kit.box(0, H / 3 + 0.52, 0, 0.12, 1.04, 0.12, C.brown, 0, id);
+  const plateY = H / 3 + 1.02;
+  kit.box(0, plateY, 0, 0.62, 0.44, 0.07, C.cream, 0, id);
+  // Month bands: 1..12 short ivory marks in two columns of six.
+  const bands = Math.max(1, Math.min(12, marker.month));
+  for (let index = 0; index < bands; index += 1) {
+    const column = index < 6 ? -1 : 1;
+    const row = index % 6;
+    kit.box(column * 0.13, plateY + 0.16 - row * 0.062, 0.045, 0.17, 0.032, 0.02, C.coral, 0, id);
+  }
   const meshes = kit.flush(`diary-month:${marker.key}`);
   for (const mesh of meshes) {
     mesh.metadata = { ...mesh.metadata, diaryMonth: marker.key };
   }
-  return { root, meshes, marker, anchorY: base + digitHeight };
+  return { root, meshes, marker, anchorY: plateY + 0.32 };
 }
 
 /**

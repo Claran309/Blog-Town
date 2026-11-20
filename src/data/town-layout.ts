@@ -142,13 +142,11 @@ export interface TownDiaryBoard {
 export interface TownDiaryMonthMarker {
   /** YYYY-MM key. */
   key: string;
-  /** Two-digit label, e.g. "05". */
-  label: string;
+  /** Month number, 1-12. */
+  month: number;
   x: number;
   z: number;
   rotation: number;
-  /** Row-major 2x4 bitmaps for the tens and units digit. */
-  digits: [string[], string[]];
 }
 
 export interface TownDiaryDistrict {
@@ -293,13 +291,15 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
 const DIARY_BOARD_WIDTH = 1.45;
 const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
-const DIARY_ROW_NEAR = 1.55;
-const DIARY_ROW_FAR = 3.05;
+const DIARY_ROW_NEAR = 2.15;
+const DIARY_ROW_FAR = 3.65;
 const DIARY_LANE_START = 6.4;
 const DIARY_LANE_END_PAD = 3.0;
+// The camera cannot pan past roughly x 28, so boards stop before the board edge.
+const DIARY_MAX_X = 26.0;
 const DIARY_LANE_STEP = 2.6;
 const DIARY_ARCHIVE_OFFSET = 1.9;
-const DIARY_ARCHIVE_STEP = 0.8;
+const DIARY_ARCHIVE_STEP = 0.72;
 const DIARY_ARCHIVE_TILT = 0.21;
 
 /** One civic notice board beside the windmill, used in \`single\` mode. */
@@ -320,20 +320,6 @@ const DIARY_SINGLE: TownDiaryBoard = {
   state: 'new',
 };
 
-// 2 columns x 4 rows. Compact enough to read as a milestone rather than a sign;
-// the exact date stays in the hover card and on the diary page.
-const DIARY_DIGITS: Record<string, string[]> = {
-  '0': ['##', '#.', '#.', '##'],
-  '1': ['.#', '.#', '.#', '.#'],
-  '2': ['##', '.#', '#.', '##'],
-  '3': ['##', '.#', '##', '.#'],
-  '4': ['#.', '##', '.#', '.#'],
-  '5': ['##', '#.', '.#', '##'],
-  '6': ['##', '#.', '##', '##'],
-  '7': ['##', '.#', '.#', '.#'],
-  '8': ['##', '##', '##', '##'],
-  '9': ['##', '##', '.#', '##'],
-};
 
 // Sampled lazily: the lane helpers live above samplePath's definition in this
 // module, so they must not run at module-evaluation time.
@@ -404,6 +390,7 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   };
   for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
     const point = laneAt(along);
+    if (point.x > DIARY_MAX_X) break;
     // Prefer the near side, but step across the road when a house occupies it.
     const near = { along, offset: DIARY_ROW_NEAR };
     const far = { along, offset: -DIARY_ROW_NEAR };
@@ -460,12 +447,24 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     return board;
   });
 
-  const endPoint = laneAt(laneLength - DIARY_LANE_END_PAD / 2);
+  // Archive cluster: the overflow is filed at the far end of the row, stacked
+  // perpendicular to the road so it never runs past the diorama edge. Boards
+  // lean and turn away from the street, so the cluster reads as "filed".
+  const lastActive = spaced[spaced.length - 1];
+  const anchorPoint = laneAt(lastActive.along);
+  // Leave a visible gap after the last live board, then file the overflow in a
+  // compact heap that steps away from the road.
+  const archiveStart = lastActive.along + 2.6;
+  const archiveAnchor = laneAt(Math.min(archiveStart, laneLength - 0.5));
+  const endPoint = anchorPoint;
   const archived: TownDiaryBoard[] = overflowEntries.map((entry, index) => {
-    const along = laneLength - DIARY_LANE_END_PAD / 2 + DIARY_ARCHIVE_STEP * (index + 1);
-    const point = laneAt(along);
-    const x = point.x + point.nx * DIARY_ARCHIVE_OFFSET;
-    const z = point.z + point.nz * DIARY_ARCHIVE_OFFSET;
+    const column = index % 2;
+    const row = Math.floor(index / 2);
+    // Heap outward across the road; each row sits further from the street.
+    const along = -column * 0.9;
+    const across = DIARY_ARCHIVE_OFFSET + row * 0.78;
+    const x = archiveAnchor.x + archiveAnchor.tx * along + archiveAnchor.nx * across;
+    const z = archiveAnchor.z + archiveAnchor.tz * along + archiveAnchor.nz * across;
     return {
       id: entry.id,
       x: Number(x.toFixed(3)),
@@ -487,15 +486,12 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     if (!currentKey || currentKey === previousKey) continue;
     const along = (spaced[index - 1].along + spaced[index].along) / 2;
     const point = laneAt(along);
-    const month = Number(currentKey.slice(5, 7));
-    const label = String(month).padStart(2, '0');
     months.push({
       key: currentKey,
-      label,
+      month: Number(currentKey.slice(5, 7)),
       x: Number((point.x + point.nx * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
       z: Number((point.z + point.nz * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
       rotation: 0,
-      digits: [DIARY_DIGITS[label[0]] ?? DIARY_DIGITS['0'], DIARY_DIGITS[label[1]] ?? DIARY_DIGITS['0']],
     });
   }
 

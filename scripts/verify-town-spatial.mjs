@@ -195,7 +195,8 @@ for (const feature of withFriends.features) {
 const diaryIds = Array.from({ length: 9 }, (_, index) => `diary-${index + 1}`);
 const withDiary = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, diaryIds.map((id) => ({ id })));
 assert(withDiary.diary, 'diary district was not created for a site with short notes');
-assert(withDiary.diary.boards.length === diaryIds.length, 'diary district must place one board per note');
+assert(withDiary.diary.boards.length > 0, 'diary lane must place at least one board');
+assert(withDiary.diary.boards.length + withDiary.diary.archived.length === diaryIds.length, 'every note must be placed or archived');
 for (const plot of withDiary.plots) {
   for (const board of withDiary.diary.boards) {
     assert(!collides(plot, board), `diary board ${board.id} collides with ${plot.postId}`);
@@ -245,10 +246,9 @@ for (const notice of crowded.archived) {
   assert(notice.state === 'archived', 'archived notes must use the archived state');
   assert(Math.abs(notice.tilt) > 0.1, 'archived notes must lean');
 }
-// Month markers stand between the two rows and never collide with a board.
+// Month markers divide the lane and never collide with a board.
 for (const marker of crowded.months) {
-  assert(marker.digits.length === 2, 'month marker needs two digits');
-  for (const digit of marker.digits) assert(digit.length === 4 && digit.every((row) => row.length === 2), 'month digit must be 2x4');
+  assert(Number.isInteger(marker.month) && marker.month >= 1 && marker.month <= 12, 'month marker needs a valid month');
   for (const notice of crowded.boards) {
     assert(!collides(notice, { x: marker.x, z: marker.z, width: 0.8, depth: 0.4 }), `month marker ${marker.key} collides with ${notice.id}`);
   }
