@@ -308,6 +308,7 @@ const DIARY_LANE_START = 6.4;
 const DIARY_LANE_END_PAD = 3.0;
 // The camera cannot pan past roughly x 28, so boards stop before the board edge.
 const DIARY_MAX_X = 26.0;
+// The lane runs west, so the reachable limit is negative.
 const DIARY_LANE_STEP = 2.35;
 const DIARY_ARCHIVE_OFFSET = 1.9;
 const DIARY_ARCHIVE_STEP = 0.72;
@@ -337,7 +338,7 @@ const DIARY_SINGLE: TownDiaryBoard = {
 let laneCache: { samples: Point[]; lengths: number[] } | undefined;
 const laneGeometry = () => {
   if (!laneCache) {
-    const samples = samplePath(roadCenterlines.east, 40);
+    const samples = samplePath(roadCenterlines.west, 40);
     const lengths = [0];
     for (let index = 1; index < samples.length; index += 1) {
       const previous = samples[index - 1];
@@ -449,9 +450,9 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
       if (Math.abs(x - entity.x) < (DIARY_BOARD_WIDTH + entity.width) / 2 + 0.2
         && Math.abs(z - entity.z) < (DIARY_BOARD_DEPTH + entity.depth) / 2 + 0.2) return true;
     }
-    // Keep clear of the road surface itself and every branch/ring corridor.
+    // Keep clear of the road surface, the river and every branch/ring corridor.
     for (const region of worldRegions) {
-      if (region.kind !== 'road') continue;
+      if (region.kind !== 'road' && region.kind !== 'river') continue;
       if (pointInPolygon({ x, z }, region.polygon)) return true;
     }
     return false;
@@ -462,7 +463,8 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   // the southern edge, so boards always land north of the centreline.
   for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
     const point = laneAt(along);
-    if (point.x > DIARY_MAX_X) break;
+    // The west road is bounded by the diorama edge on the far side.
+    if (point.x < -DIARY_MAX_X) break;
     // Boards always sit on the far side of the road, and keep a real gap from
     // any building so a facade never hides them.
     const sign = awaySign(point.nx, point.nz);
@@ -593,7 +595,7 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     archived,
     months,
     singleBoard: DIARY_SINGLE,
-    path: roadCenterlines.east,
+    path: roadCenterlines.west,
     bounds,
   };
 };

@@ -570,6 +570,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   };
   const onResolveDiaryAnchor = (id: string, anchor: SceneAnchor) => {
     if (hoveredDiaryId === id) setDiaryAnchor(anchor);
+    // The open card follows the board while the camera travels to it.
+    if (openDiaryId === id) setCardAnchor(anchor);
   };
   // Reading-card paging: move the camera to the matching board as well, so
   // the card and the scene stay in sync while flipping through notes.

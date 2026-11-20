@@ -412,7 +412,8 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     // frame of the travel instead of staying at its pre-focus screen point.
     const active=state.hoveredFriendId??state.selectedFriendId;
     if(active)anchorFriend(active);
-    if(state.hoveredDiaryId)anchorDiary(state.hoveredDiaryId);
+    const diaryTarget=state.focusedDiaryId??state.hoveredDiaryId;
+    if(diaryTarget)anchorDiary(diaryTarget);
     requestDraw();
   }
   let lastHover:string|undefined,lastPickAt=0;
