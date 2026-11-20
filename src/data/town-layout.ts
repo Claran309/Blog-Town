@@ -293,7 +293,7 @@ const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
 // Candidate distances from the road centreline, all on the house-free side.
 // Boards step further out rather than crossing the road.
-const DIARY_OFFSETS = [3.2, 4.2, 5.2, 6.4, 7.6, 8.8];
+const DIARY_OFFSETS = [3.0, 3.8, 4.6, 5.4, 6.2, 7.0, 7.8, 8.6, 9.4, 10.2];
 // The diorama camera sits at alpha = 0.68pi; "away" is the opposite direction,
 // so anything placed along it lands behind the road from the viewer's side.
 const DIARY_AWAY_X = -Math.cos(Math.PI * 0.68);
@@ -308,7 +308,7 @@ const DIARY_LANE_START = 6.4;
 const DIARY_LANE_END_PAD = 3.0;
 // The camera cannot pan past roughly x 28, so boards stop before the board edge.
 const DIARY_MAX_X = 26.0;
-const DIARY_LANE_STEP = 2.6;
+const DIARY_LANE_STEP = 2.35;
 const DIARY_ARCHIVE_OFFSET = 1.9;
 const DIARY_ARCHIVE_STEP = 0.72;
 const DIARY_ARCHIVE_TILT = 0.21;
@@ -387,17 +387,55 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   const tooCloseToBuilding = (x: number, z: number) => existingPlots.some((plot) =>
     Math.abs(x - plot.x) < (DIARY_BOARD_WIDTH + plot.width) / 2 + 1.5
     && Math.abs(z - plot.z) < (DIARY_BOARD_DEPTH + plot.depth) / 2 + 1.5);
-  // Sitting on the far side of the road is not enough: a house between the
-  // board and the camera hides it completely. Walk from the board toward the
-  // camera and reject any spot whose sightline crosses a building footprint.
-  const sightlineBlocked = (x: number, z: number) => {
-    const step = 0.35;
-    for (let distance = 0.6; distance <= 9; distance += step) {
-      const sx = x + DIARY_CAMERA_X * distance;
-      const sz = z + DIARY_CAMERA_Z * distance;
-      if (existingPlots.some((plot) =>
-        Math.abs(sx - plot.x) < plot.width / 2 + 0.1
-        && Math.abs(sz - plot.z) < plot.depth / 2 + 0.1)) return true;
+  // Being on the far side of the road is not enough: this is an isometric
+  // diorama, so a tall house hides everything standing behind it on screen.
+  // Ground-level distance checks miss that entirely, so the test is done in
+  // screen space: project the board and every building, and reject the spot
+  // when a nearer building's silhouette covers it.
+  const DIORAMA_ALPHA = Math.PI * 0.68;
+  const DIORAMA_BETA = 0.96;
+  const cosA = Math.cos(DIORAMA_ALPHA), sinA = Math.sin(DIORAMA_ALPHA);
+  const cosB = Math.cos(DIORAMA_BETA), sinB = Math.sin(DIORAMA_BETA);
+  // Orthographic screen axes derived from the ArcRotate camera basis.
+  const screenOf = (x: number, y: number, z: number) => ({
+    x: -x * sinA + z * cosA,
+    y: -x * cosA * cosB + y * sinB - z * sinA * cosB,
+    depth: -x * cosA * sinB + y * cosB + z * sinA * sinB,
+  });
+  const BOARD_HEIGHT = 3.0;
+  const FLOOR_HEIGHT_ESTIMATE = 1.512;
+  const buildingHeight = (plot: TownPlot) => {
+    const floors = Math.max(1, plot.seriesPostIds?.length ?? 1);
+    return 1.2 + floors * FLOOR_HEIGHT_ESTIMATE + 1.0;
+  };
+  const rectOf = (x: number, z: number, width: number, depth: number, height: number) => {
+    const halfW = width / 2, halfD = depth / 2;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minDepth = Infinity, maxDepth = -Infinity;
+    for (const dx of [-halfW, halfW]) {
+      for (const dz of [-halfD, halfD]) {
+        for (const dy of [0, height]) {
+          const p = screenOf(x + dx, dy, z + dz);
+          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+          minDepth = Math.min(minDepth, p.depth); maxDepth = Math.max(maxDepth, p.depth);
+        }
+      }
+    }
+    return { minX, maxX, minY, maxY, minDepth, maxDepth };
+  };
+  const boardRect = (x: number, z: number) =>
+    rectOf(x, z, DIARY_BOARD_WIDTH, DIARY_BOARD_DEPTH, BOARD_HEIGHT);
+  const occludedByBuilding = (x: number, z: number) => {
+    const board = boardRect(x, z);
+    for (const plot of existingPlots) {
+      const building = rectOf(plot.x, plot.z, plot.width, plot.depth, buildingHeight(plot));
+      // A building only hides the board if it is in front of it and their
+      // silhouettes actually overlap. The margin keeps a hair of the board's
+      // own frame from being clipped.
+      if (building.minDepth <= board.maxDepth) continue;
+      const overlapX = Math.min(board.maxX, building.maxX) - Math.max(board.minX, building.minX);
+      const overlapY = Math.min(board.maxY, building.maxY) - Math.max(board.minY, building.minY);
+      if (overlapX > 0.15 && overlapY > 0.15) return true;
     }
     return false;
   };
@@ -433,7 +471,7 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
       const z = point.z + point.nz * offset * sign;
       if (blocked(x, z)) continue;
       if (tooCloseToBuilding(x, z)) continue;
-      if (sightlineBlocked(x, z)) continue;
+      if (occludedByBuilding(x, z)) continue;
       slots.push({ along, offset: offset * sign });
       break;
     }
