@@ -15,7 +15,7 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.
 import '@babylonjs/core/Culling/ray.js';
 import { BOARD, buildWorld, randomFor } from './world';
 import { buildHouse, FLOOR_HEIGHT, GROUND_Y } from './buildings';
-import { buildDiaryBoard, buildFeature, buildFriendHut } from './features';
+import { buildDiaryBoard, buildDiaryMonthMarker, buildFeature, buildFriendHut } from './features';
 import { buildMinifig } from './minifig';
 import { createLife, tickLife, type Citizen } from './life';
 import { weatherIsPrecipitating } from '../../data/town-weather';
@@ -28,7 +28,7 @@ import type { TownLayout } from '../../data/town-layout';
 import type { TownSceneProps } from './types';
 import { clampToPanBounds, getCameraPanBounds, getDragPanDelta } from './view';
 
-export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'diaryMode'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
+export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'diaryFocusRevision'|'diaryMode'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
 export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onHoverFriend'|'onHoverDiary'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onResolveFriendAnchor'|'onResolveDiaryAnchor'|'onSelectPost'|'onOpenFeature'|'onSelectFriend'|'onSelectDiary'|'onTownExplored'> & {
   onResolveNewPostAnchors?: (frame: PostNoticeFrame) => void;
 };
@@ -135,6 +135,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   let diaryBoards: ReturnType<typeof buildDiaryBoard>[] = [];
   let diaryMeshes: ReturnType<typeof buildDiaryBoard>['meshes'] = [];
   let diaryById = new Map<string, ReturnType<typeof buildDiaryBoard>>();
+  let diaryMonths: ReturnType<typeof buildDiaryMonthMarker>[] = [];
   let diaryMode: 'district' | 'single' = initial.diaryMode ?? 'district';
   const buildDiaryFurniture = () => {
     for (const board of diaryBoards) for (const mesh of board.meshes) {
@@ -143,11 +144,19 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
       shadows.removeShadowCaster(mesh);
     }
     for (const board of diaryBoards) board.root.dispose(false, false);
+    for (const marker of diaryMonths) marker.root.dispose(false, false);
+    // The district renders live boards plus the archived cluster; the single
+    // layout keeps only the one civic board beside the windmill.
     const source = layout.diary
-      ? (diaryMode === 'single' ? [layout.diary.singleBoard] : layout.diary.boards)
+      ? (diaryMode === 'single'
+        ? [layout.diary.singleBoard]
+        : [...layout.diary.boards, ...layout.diary.archived])
       : [];
+    const monthSource = layout.diary && diaryMode === 'district' ? layout.diary.months : [];
     diaryBoards = source.map((board) => buildDiaryBoard(scene, board, mobile));
+    diaryMonths = monthSource.map((marker) => buildDiaryMonthMarker(scene, marker, mobile));
     diaryMeshes = diaryBoards.flatMap((board) => board.meshes);
+    for (const marker of diaryMonths) diaryMeshes.push(...marker.meshes);
     diaryById = new Map(diaryBoards.map((board) => [board.board.id, board]));
     for (const mesh of diaryMeshes) {
       if (!mesh.metadata.glass) glow?.addExcludedMesh(mesh);
@@ -212,6 +221,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
   let friendFocus='';
   let lastFocusedFriend='';
   let lastFocusedDiary='';
+  let lastDiaryFocusRevision=0;
   let articleMeshes=[...houseMeshes,...seasons.articleMeshes];
   let highlightSignature='';
   let state={...initial};let frames=0;let elapsed=0;
@@ -283,6 +293,13 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     if(focusedFriendId!==lastFocusedFriend){lastFocusedFriend=focusedFriendId;if(focusedFriendId)focusFriend(focusedFriendId);}
     const focusedDiaryId=state.focusedDiaryId??'';
     if(focusedDiaryId!==lastFocusedDiary){lastFocusedDiary=focusedDiaryId;if(focusedDiaryId)focusDiary(focusedDiaryId);}
+    // The reading card can return to a note it already visited, so re-request
+    // the same id through a revision counter instead of relying on id changes.
+    const focusRevision=state.diaryFocusRevision??0;
+    if(focusRevision!==lastDiaryFocusRevision){
+      lastDiaryFocusRevision=focusRevision;
+      if(focusedDiaryId)focusDiary(focusedDiaryId);
+    }
     if(state.reducedMotion)seasons.tick(0,true);
     const nextHighlightSignature=[state.query,state.category??'',state.tag??'',state.hoveredPostId??'',state.hoveredFeatureId??'',activeFriend??'',activeDiary,state.activePostId??'',state.season].join('\u0000');
     if(highlights && nextHighlightSignature!==highlightSignature) {

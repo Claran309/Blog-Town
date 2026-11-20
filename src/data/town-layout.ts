@@ -1,3 +1,4 @@
+
 export type RegionKind = 'road' | 'river' | 'forest' | 'landmark' | 'buildable';
 export type Point = { x: number; z: number };
 
@@ -49,6 +50,8 @@ export interface LayoutFriend {
 
 export interface LayoutDiaryEntry {
   id: string;
+  /** ISO date; used to place month markers and to order the lane. */
+  date?: string;
 }
 
 export type TownEntityKind = 'farm' | 'fence' | 'shrub';
@@ -121,6 +124,8 @@ export interface TownDiaryBoard {
   width: number;
   depth: number;
   rotation: number;
+  /** Lean in radians; older boards lean, archived ones lean furthest. */
+  tilt: number;
   /** Stable accent index so a board keeps its colour across builds. */
   accent: number;
   /**
@@ -129,6 +134,21 @@ export interface TownDiaryBoard {
    * official notices.
    */
   form: 'board' | 'cork' | 'chalk' | 'awning';
+  /** How weathered the board is; drives geometry, not just colour. */
+  state: 'new' | 'mid' | 'old' | 'archived';
+}
+
+/** A brick digit marker that divides the diary lane by month. */
+export interface TownDiaryMonthMarker {
+  /** YYYY-MM key. */
+  key: string;
+  /** Two-digit label, e.g. "05". */
+  label: string;
+  x: number;
+  z: number;
+  rotation: number;
+  /** Row-major 2x4 bitmaps for the tens and units digit. */
+  digits: [string[], string[]];
 }
 
 export interface TownDiaryDistrict {
@@ -137,12 +157,14 @@ export interface TownDiaryDistrict {
   x: number;
   z: number;
   boards: TownDiaryBoard[];
+  /** Notes that no longer fit on the lane, filed at its far end. */
+  archived: TownDiaryBoard[];
+  /** Month markers standing between the two board rows. */
+  months: TownDiaryMonthMarker[];
   /** The single civic board used by the compact layout. */
   singleBoard: TownDiaryBoard;
   /** Dirt lane that connects the quarter to the town. */
   path: Point[];
-  /** Radius of the quarter's clear green. */
-  radius: number;
   /** Bounds that keep article lots and props out of the district. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
@@ -265,32 +287,24 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
   };
 };
 
-// Diary boards are street furniture, not signage: each one keeps the town's
-// axes (facing the plaza) instead of turning toward the camera, and the four
-// silhouettes keep a district from reading as a row of identical notices.
-// A quiet outlying quarter in the south-west, mirroring the friend hamlet on
-// the opposite corner so the two read as twin satellite settlements.
-const DIARY_CENTER = { x: -22.0, z: -17.0 };
-const DIARY_RADIUS = 6.6;
-const DIARY_COLUMNS = 3;
-const DIARY_ROWS = 3;
-const DIARY_STEP_X = 2.30;
-const DIARY_STEP_Z = 1.95;
+// Diary boards line the lane that leads out to the friend hamlet, on its town
+// side. The newest note sits closest to town and time recedes down the lane.
+// Two staggered rows keep the strip readable without turning it into a fence.
 const DIARY_BOARD_WIDTH = 1.45;
 const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
+const DIARY_ROW_NEAR = 1.5;
+const DIARY_ROW_FAR = 2.9;
+const DIARY_LANE_START = 1.3;
+const DIARY_LANE_END_PAD = 2.0;
+const DIARY_LANE_STEP = 1.9;
+const DIARY_ARCHIVE_OFFSET = 1.9;
+const DIARY_ARCHIVE_STEP = 0.8;
+const DIARY_ARCHIVE_TILT = 0.21;
 
-/** One civic notice board beside the windmill, used in `single` mode. */
-export const DIARY_SINGLE_BOARD = { x: -1.8, z: 6.2, width: 1.62, depth: 0.70 } as const;
+/** One civic notice board beside the windmill, used in \`single\` mode. */
+export const DIARY_SINGLE_BOARD = { x: -1.2, z: 4.3, width: 1.62, depth: 0.70 } as const;
 
-// Dirt lane from the town's west side out to the diary quarter.
-const DIARY_PATH: Point[] = [
-  { x: -9.2, z: -4.0 },
-  { x: -12.4, z: -7.0 },
-  { x: -15.4, z: -10.0 },
-  { x: -18.0, z: -13.0 },
-  { x: -20.2, z: -15.4 },
-];
 
 const DIARY_SINGLE: TownDiaryBoard = {
   id: 'diary-all',
@@ -300,8 +314,61 @@ const DIARY_SINGLE: TownDiaryBoard = {
   depth: DIARY_SINGLE_BOARD.depth,
   // Face the plaza's south approach, matching the surrounding houses.
   rotation: 0,
+  tilt: 0,
   accent: 0,
   form: 'board',
+  state: 'new',
+};
+
+// 2 columns x 4 rows. Compact enough to read as a milestone rather than a sign;
+// the exact date stays in the hover card and on the diary page.
+const DIARY_DIGITS: Record<string, string[]> = {
+  '0': ['##', '#.', '#.', '##'],
+  '1': ['.#', '.#', '.#', '.#'],
+  '2': ['##', '.#', '#.', '##'],
+  '3': ['##', '.#', '##', '.#'],
+  '4': ['#.', '##', '.#', '.#'],
+  '5': ['##', '#.', '.#', '##'],
+  '6': ['##', '#.', '##', '##'],
+  '7': ['##', '.#', '.#', '.#'],
+  '8': ['##', '##', '##', '##'],
+  '9': ['##', '##', '.#', '##'],
+};
+
+// Sampled lazily: the lane helpers live above samplePath's definition in this
+// module, so they must not run at module-evaluation time.
+let laneCache: { samples: Point[]; lengths: number[] } | undefined;
+const laneGeometry = () => {
+  if (!laneCache) {
+    const samples = samplePath(HAMLET_PATH, 40);
+    const lengths = [0];
+    for (let index = 1; index < samples.length; index += 1) {
+      const previous = samples[index - 1];
+      const current = samples[index];
+      lengths.push(lengths[index - 1] + Math.hypot(current.x - previous.x, current.z - previous.z));
+    }
+    laneCache = { samples, lengths };
+  }
+  return laneCache;
+};
+
+/** Point and unit tangent at a distance along the hamlet lane. */
+const laneAt = (distance: number) => {
+  const { samples, lengths } = laneGeometry();
+  const total = lengths[lengths.length - 1];
+  const clamped = Math.max(0, Math.min(total, distance));
+  let index = 1;
+  while (index < lengths.length - 1 && lengths[index] < clamped) index += 1;
+  const previous = samples[index - 1];
+  const current = samples[index];
+  const segment = Math.max(1e-6, lengths[index] - lengths[index - 1]);
+  const t = (clamped - lengths[index - 1]) / segment;
+  const x = previous.x + (current.x - previous.x) * t;
+  const z = previous.z + (current.z - previous.z) * t;
+  const dx = current.x - previous.x;
+  const dz = current.z - previous.z;
+  const length = Math.hypot(dx, dz) || 1;
+  return { x, z, tx: dx / length, tz: dz / length, nx: -dz / length, nz: dx / length };
 };
 
 /**
@@ -309,45 +376,116 @@ const DIARY_SINGLE: TownDiaryBoard = {
  * them based on the visitor's choice, so switching never has to rebuild the
  * town or move an article building.
  */
-export const createTownDiaryDistrict = (entryIds: string[]): TownDiaryDistrict | undefined => {
-  if (!entryIds.length) return undefined;
-  const boards: TownDiaryBoard[] = entryIds.map((id, index) => {
-    const column = index % DIARY_COLUMNS;
-    const row = Math.floor(index / DIARY_COLUMNS);
-    const x = DIARY_CENTER.x + (column - (DIARY_COLUMNS - 1) / 2) * DIARY_STEP_X;
-    const z = DIARY_CENTER.z + (row - (DIARY_ROWS - 1) / 2) * DIARY_STEP_Z;
+export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[]): TownDiaryDistrict | undefined => {
+  if (!entries.length) return undefined;
+
+  // Walk the lane and collect board slots: alternating rows, newest first.
+  const slots: { along: number; offset: number }[] = [];
+  const laneLength = laneGeometry().lengths.at(-1) ?? 0;
+  const last = laneLength - DIARY_LANE_END_PAD;
+  for (let index = 0; ; index += 1) {
+    const along = DIARY_LANE_START + Math.floor(index / 2) * DIARY_LANE_STEP + (index % 2 ? DIARY_LANE_STEP / 2 : 0);
+    if (along > last) break;
+    slots.push({ along, offset: index % 2 ? DIARY_ROW_FAR : DIARY_ROW_NEAR });
+  }
+  const capacity = slots.length;
+
+  const toBoard = (entry: LayoutDiaryEntry, slot: { along: number; offset: number }, index: number): TownDiaryBoard => {
+    const point = laneAt(slot.along);
+    const x = point.x + point.nx * slot.offset;
+    const z = point.z + point.nz * slot.offset;
+    // Faces the camera like the rest of the town; a tiny yaw keeps the row
+    // from looking machine-set.
+    const jitter = (index % 3) - 1;
     return {
-      id,
+      id: entry.id,
       x: Number(x.toFixed(3)),
       z: Number(z.toFixed(3)),
       width: DIARY_BOARD_WIDTH,
       depth: DIARY_BOARD_DEPTH,
-      // Match the houses: boards face +Z, the town's frontage axis, instead of
-      // turning toward the camera or into a ring that shows only their backs.
-      rotation: 0,
+      rotation: jitter * 0.05,
+      tilt: 0,
       accent: index % 4,
       form: DIARY_FORMS[index % DIARY_FORMS.length],
+      state: 'new',
+    };
+  };
+
+  const activeEntries = entries.slice(0, capacity);
+  const overflowEntries = entries.slice(capacity);
+
+  const boards = activeEntries.map((entry, index) => {
+    const board = toBoard(entry, slots[index], index);
+    // Age runs from the town end outward, split into thirds.
+    const third = Math.floor(index / Math.max(1, Math.ceil(capacity / 3)));
+    board.state = third <= 0 ? 'new' : third === 1 ? 'mid' : 'old';
+    board.tilt = board.state === 'new' ? 0 : board.state === 'mid' ? 0.026 : 0.052;
+    return board;
+  });
+
+  // Overflow is archived at the far end: a leaning cluster, turned away from
+  // the lane so it reads as "filed", not "still in use".
+  const end = laneAt(last);
+  const archived: TownDiaryBoard[] = overflowEntries.map((entry, index) => {
+    const along = last + DIARY_ARCHIVE_STEP * (index + 1);
+    const point = laneAt(along);
+    const x = point.x + point.nx * DIARY_ARCHIVE_OFFSET;
+    const z = point.z + point.nz * DIARY_ARCHIVE_OFFSET;
+    return {
+      id: entry.id,
+      x: Number(x.toFixed(3)),
+      z: Number(z.toFixed(3)),
+      width: DIARY_BOARD_WIDTH,
+      depth: DIARY_BOARD_DEPTH,
+      rotation: (index % 2 ? 1 : -1) * 0.31,
+      tilt: DIARY_ARCHIVE_TILT,
+      accent: index % 4,
+      form: 'board',
+      state: 'archived',
     };
   });
-  // The reservation covers both layouts so article lots and decoration never
-  // squeeze between boards, whichever one is on screen.
-  const halfW = ((DIARY_COLUMNS - 1) / 2) * DIARY_STEP_X + DIARY_BOARD_WIDTH / 2;
-  const halfD = ((DIARY_ROWS - 1) / 2) * DIARY_STEP_Z + DIARY_BOARD_DEPTH / 2;
+
+  // A month marker stands between the rows at each month boundary.
+  const months: TownDiaryMonthMarker[] = [];
+  for (let index = 1; index < activeEntries.length; index += 1) {
+    const previous = activeEntries[index - 1];
+    const current = activeEntries[index];
+    const previousKey = (previous.date ?? '').slice(0, 7);
+    const currentKey = (current.date ?? '').slice(0, 7);
+    if (!currentKey || currentKey === previousKey) continue;
+    const along = (slots[index - 1].along + slots[index].along) / 2;
+    const point = laneAt(along);
+    const month = Number(currentKey.slice(5, 7));
+    const label = String(month).padStart(2, '0');
+    months.push({
+      key: currentKey,
+      label,
+      x: Number((point.x + point.nx * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
+      z: Number((point.z + point.nz * (DIARY_ROW_NEAR + DIARY_ROW_FAR) / 2).toFixed(3)),
+      rotation: 0,
+      digits: [DIARY_DIGITS[label[0]] ?? DIARY_DIGITS['0'], DIARY_DIGITS[label[1]] ?? DIARY_DIGITS['0']],
+    });
+  }
+
+  const all = [...boards, ...archived, ...months];
+  const bounds = {
+    minX: Math.min(...all.map((item) => item.x)) - 1.4,
+    maxX: Math.max(...all.map((item) => item.x)) + 1.4,
+    minZ: Math.min(...all.map((item) => item.z)) - 1.4,
+    maxZ: Math.max(...all.map((item) => item.z)) + 1.4,
+  };
+
   return {
     id: 'diary-district',
     kind: 'diary',
-    x: DIARY_CENTER.x,
-    z: DIARY_CENTER.z,
+    x: end.x,
+    z: end.z,
     boards,
+    archived,
+    months,
     singleBoard: DIARY_SINGLE,
-    path: DIARY_PATH,
-    radius: DIARY_RADIUS,
-    bounds: {
-      minX: Math.min(DIARY_CENTER.x - halfW, DIARY_SINGLE.x - DIARY_SINGLE.width / 2) - 0.6,
-      maxX: Math.max(DIARY_CENTER.x + halfW, DIARY_SINGLE.x + DIARY_SINGLE.width / 2) + 0.6,
-      minZ: Math.min(DIARY_CENTER.z - halfD, DIARY_SINGLE.z - DIARY_SINGLE.depth / 2) - 0.6,
-      maxZ: Math.max(DIARY_CENTER.z + halfD, DIARY_SINGLE.z + DIARY_SINGLE.depth / 2) + 0.6,
-    },
+    path: HAMLET_PATH,
+    bounds,
   };
 };
 
@@ -736,7 +874,7 @@ export const createTownLayout = (
 ): TownLayout => {
   const groups = groupPosts(posts);
   const hamlet = createTownHamlet(friends.map((friend) => friend.id));
-  const diaryDistrict = createTownDiaryDistrict(diary.map((entry) => entry.id));
+  const diaryDistrict = createTownDiaryDistrict(diary);
   const presets = stableArticlePlots[seed] ?? {};
   const orderedGroups = [...groups].sort((a, b) => {
     const aPreset = presets[groupKey(a)];

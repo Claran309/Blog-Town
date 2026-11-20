@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { getCollection } from 'astro:content';
 import { createTownLayout } from '../data/town-layout';
 import { friendLinks, siteConfig } from '../config/site';
-import { diaryEntries } from '../data/town-diary';
+import { sortedDiaryEntries } from '../data/town-diary';
 import { createMarkdownResources } from './markdown-embeds';
 import { renderArticleMarkdown } from './markdown';
 import type { SearchEntry, TownPost, TownPostContent, TownPostSummary } from '../scene/brick-town/types';
@@ -81,7 +81,8 @@ const buildSiteData = async () => {
     posts,
     contents,
     searchIndex,
-    layout: createTownLayout(siteConfig.townSeed, posts, friendLinks, diaryEntries),
+    // Newest first: the lane places the freshest note closest to town.
+    layout: createTownLayout(siteConfig.townSeed, posts, friendLinks, sortedDiaryEntries()),
   };
 };
 

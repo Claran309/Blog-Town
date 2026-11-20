@@ -223,10 +223,28 @@ assert(withDiary.diary.singleBoard.id === 'diary-all', 'compact diary board must
 for (const plot of withDiary.plots) {
   assert(!collides(plot, withDiary.diary.singleBoard), 'compact diary board collides with an article building');
 }
-// Boards keep the town's frontage axis rather than turning toward the camera
-// or forming a ring that only shows their backs.
-for (const notice of [...withDiary.diary.boards, withDiary.diary.singleBoard]) {
-  assert(notice.rotation === 0, `diary board ${notice.id} must keep the town's axis`);
+// The single board keeps the town axis; lane boards may carry a tiny yaw but
+// must stay nearly square to the street instead of turning toward the camera.
+assert(withDiary.diary.singleBoard.rotation === 0, 'compact diary board must keep the town axis');
+for (const notice of withDiary.diary.boards) {
+  assert(Math.abs(notice.rotation) <= 0.12, `diary board ${notice.id} yaw is too far off the street`);
+}
+// The lane is capped: extra notes are filed in the archive cluster instead.
+const manyDiary = Array.from({ length: 20 }, (_, index) => ({ id: `note-${index + 1}`, date: `2026-${String(12 - Math.floor(index / 4)).padStart(2, '0')}-01` }));
+const crowded = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, manyDiary).diary;
+assert(crowded.boards.length === 12, `lane must hold 12 boards, got ${crowded.boards.length}`);
+assert(crowded.archived.length === 8, `overflow must be archived, got ${crowded.archived.length}`);
+for (const notice of crowded.archived) {
+  assert(notice.state === 'archived', 'archived notes must use the archived state');
+  assert(Math.abs(notice.tilt) > 0.1, 'archived notes must lean');
+}
+// Month markers stand between the two rows and never collide with a board.
+for (const marker of crowded.months) {
+  assert(marker.digits.length === 2, 'month marker needs two digits');
+  for (const digit of marker.digits) assert(digit.length === 4 && digit.every((row) => row.length === 2), 'month digit must be 2x4');
+  for (const notice of crowded.boards) {
+    assert(!collides(notice, { x: marker.x, z: marker.z, width: 0.8, depth: 0.4 }), `month marker ${marker.key} collides with ${notice.id}`);
+  }
 }
 // The quarter is an outlying place: it must sit well away from the town core.
 assert(Math.hypot(withDiary.diary.x, withDiary.diary.z) > 18, 'diary quarter must be an outlying district');

@@ -57,6 +57,8 @@ export type TownSceneProps = {
   hoveredDiaryId?: string;
   /** Diary entry id whose notice board the camera should travel to. */
   focusedDiaryId?: string;
+  /** Bumped whenever the reading card flips, even to an already-focused note. */
+  diaryFocusRevision?: number;
   /** Which diary layout the scene should render. */
   diaryMode?: 'district' | 'single';
   newPostIds?: readonly string[];

@@ -155,6 +155,10 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const [hoveredDiaryId, setHoveredDiaryId] = useState<string>();
   const [diaryAnchor, setDiaryAnchor] = useState<SceneAnchor>();
   const [focusedDiaryId, setFocusedDiaryId] = useState<string>();
+  // The reading card floats over the scene; null means closed.
+  const [openDiaryId, setOpenDiaryId] = useState<string>();
+  // Paging bumps this so the camera re-focuses even on a repeat visit.
+  const [diaryFocusRevision, setDiaryFocusRevision] = useState(0);
   // Selecting a neighbour keeps the list open while the camera travels out to
   // their hut, so the two states are tracked separately from hover.
   const [selectedFriendId, setSelectedFriendId] = useState<string>();
@@ -224,8 +228,8 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const siteStats = useMemo(() => createSiteStats(posts), [posts]);
   const [siteTotals, setSiteTotals] = useState<{ pageviews: number; visitors: number }>();
   useEffect(() => {
-    // Both the town home card and About report accumulated site traffic.
-    if (surface !== 'about' && surface !== 'town') return;
+    // The sidebar ledger is always visible, so load the totals on mount rather
+    // than waiting for the About or town surface.
     let cancelled = false;
     // Never a single page's hit count: the API's `totals` is site-wide.
     void readSiteTotals().then((totals) => {
@@ -233,7 +237,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
       setSiteTotals(totals);
     });
     return () => { cancelled = true; };
-  }, [surface]);
+  }, []);
   const filteredPosts = useMemo(() => sortedPosts.filter((post) => {
     const matchesQuery = !query || getScore(post, query, searchTextByPost.get(post.id)) > 0;
     const matchesCategory = !activeCategory || post.category === activeCategory;
@@ -520,6 +524,14 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
     setSelectedFriendId(id);
     setFocusedFriendId(id);
   };
+  // Clicking a hut keeps the visitor in town: it pins that neighbour's card,
+  // and the card carries the "visit" button. Only the list arrow opens a link.
+  const openFriendCard = (id: string) => {
+    setSidebarPanel('friends');
+    setSelectedFriendId(id);
+    setHoveredFriendId(undefined);
+    setFocusedFriendId(id);
+  };
   const onHoverFriend = (id?: string, anchor?: SceneAnchor) => {
     setHoveredFriendId(id);
     // Hover always previews the hut under the pointer; releasing the pointer
@@ -538,12 +550,25 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
   const onResolveDiaryAnchor = (id: string, anchor: SceneAnchor) => {
     if (hoveredDiaryId === id) setDiaryAnchor(anchor);
   };
+  // Reading-card paging: move the camera to the matching board as well, so
+  // the card and the scene stay in sync while flipping through notes.
+  const diaryOrder = useMemo(() => sortedDiaryEntries(), []);
+  const openDiaryIndex = openDiaryId ? diaryOrder.findIndex((entry) => entry.id === openDiaryId) : -1;
+  const openDiaryEntryData = openDiaryIndex >= 0 ? diaryOrder[openDiaryIndex] : undefined;
+  const stepDiary = (delta: number) => {
+    const next = diaryOrder[openDiaryIndex + delta];
+    if (!next) return;
+    setOpenDiaryId(next.id);
+    setFocusedDiaryId(next.id);
+    setDiaryFocusRevision((value) => value + 1);
+  };
   const openDiaryEntry = (id: string) => {
-    // In `single` mode one civic board opens the diary page; in `district`
-    // mode each board is one note and jumps straight to that entry.
+    // The compact board opens the diary page; each lane board opens a
+    // reading card first, and that card can take the visitor to the page.
     if (id === 'diary-all') { navigate('diary'); return; }
     setFocusedDiaryId(id);
-    window.location.assign(`/diary/#${id}`);
+    setDiaryFocusRevision((value) => value + 1);
+    setOpenDiaryId(id);
   };
   const selectScenePost = (id: string, pointerType?: string) => {
     if (pointerType === 'touch' && touchPostId !== id) {
@@ -611,11 +636,16 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
             </div>
           </div>
           <div className={`sidebar-content-scroll ${sidebarPanel === 'profile' ? 'is-profile' : ''}`}>
-            <SidebarContent mobileOpen={mobileSidebarOpen} panel={sidebarPanel} posts={sidebarPosts} categories={categories} tags={tags} activeCategory={sidebarCategory} activeTag={sidebarTag} hoveredPostId={hoveredPostId} onHover={onSidebarPostHover} onHoverFeature={onHoverFeature} selectedFriendId={selectedFriendId} onHoverFriend={(id) => setHoveredFriendId(id)} onSelectFriend={selectFriend} onCategoryPreview={onCategoryPreview} onTagPreview={onTagPreview} onCategory={chooseCategory} onTag={chooseTag} onOpenArticle={openArticle} onBack={() => { setPreviewCategory(undefined); setPreviewTag(undefined); setSidebarPanel(sidebarCategory ? 'categories' : sidebarTag ? 'tags' : 'profile'); setSidebarCategory(undefined); setSidebarTag(undefined); setActiveCategory(undefined); setActiveTag(undefined); }} />
+            <SidebarContent mobileOpen={mobileSidebarOpen} panel={sidebarPanel} posts={sidebarPosts} categories={categories} tags={tags} activeCategory={sidebarCategory} activeTag={sidebarTag} hoveredPostId={hoveredPostId} onHover={onSidebarPostHover} onHoverFeature={onHoverFeature} selectedFriendId={selectedFriendId} onHoverFriend={(id) => setHoveredFriendId(id)} onSelectFriend={openFriendCard} onCategoryPreview={onCategoryPreview} onTagPreview={onTagPreview} onCategory={chooseCategory} onTag={chooseTag} onOpenArticle={openArticle} onBack={() => { setPreviewCategory(undefined); setPreviewTag(undefined); setSidebarPanel(sidebarCategory ? 'categories' : sidebarTag ? 'tags' : 'profile'); setSidebarCategory(undefined); setSidebarTag(undefined); setActiveCategory(undefined); setActiveTag(undefined); }} />
           </div>
         </div>
         <div className="sidebar-footer">
-          <div className="sidebar-footer-main"><span>{siteConfig.copyright} <a className="sidebar-rss-link" href="/rss.xml" aria-label="订阅 RSS">RSS</a></span><a className="sidebar-classic-link" href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客</a></div>
+          <div className="sidebar-ledger" aria-label="站点数据">
+            <div><span>访问量</span><strong>{siteTotals ? formatViews(siteTotals.pageviews) : '—'}</strong></div>
+            <div><span>访问人数</span><strong>{siteTotals ? formatViews(siteTotals.visitors) : '—'}</strong></div>
+            <div><span>总字数</span><strong>{formatWords(siteStats.words)}</strong></div>
+          </div>
+          <div className="sidebar-footer-main"><span>{siteConfig.copyright}</span></div>
           <div className="sidebar-powered">Powered by <a className="sidebar-powered-link" href="https://github.com/BURIBURI-ZAEMON1/Blog-Town" target="_blank" rel="noreferrer noopener">Blog-Town</a></div>
         </div>
       </aside>
@@ -637,19 +667,16 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
               {SEASON_ORDER.map(value=><option key={value} value={value}>{SEASON_PROFILES[value].label}季</option>)}
             </select>{icon('chevron')}
           </label>
-          {surface === 'town' && <div className="diary-mode-switch" role="group" aria-label="短日记在镇上的显示方式">
-            <span className="visually-hidden">短日记布局</span>
-            <button type="button" className={diaryMode === 'district' ? 'is-active' : ''} aria-pressed={diaryMode === 'district'} title="每条日记一块公告栏，组成独立区域" onClick={() => chooseDiaryMode('district')}>街区</button>
-            <button type="button" className={diaryMode === 'single' ? 'is-active' : ''} aria-pressed={diaryMode === 'single'} title="风车旁一块布告栏，点击进入日记页" onClick={() => chooseDiaryMode('single')}>单板</button>
-          </div>}</div>
+          </div>
         </header>
 
         {surface === 'archive' && <ArchiveHeading postCount={posts.length} />}
         <div className="main-scroll" ref={mainSurfaceRef}>
         {surface === 'town' && <section className="town-home">
           <h1 className="visually-hidden">{siteConfig.title} — {siteConfig.tagline}</h1>
-          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} diaryMode={diaryMode} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
+          <TownStage posts={posts} layout={layout} newPostIds={newPostIds} guidePostId={guidePostId} onTownExplored={markExplored} season={season} activePostId={selectedPostId} hoveredPostId={touchPostId ?? hoveredPostId} hoveredFeatureId={hoveredFeatureId} hoveredFriendId={hoveredFriendId} selectedFriendId={selectedFriendId} focusedFriendId={focusedFriendId} hoveredDiaryId={hoveredDiaryId} focusedDiaryId={focusedDiaryId} diaryFocusRevision={diaryFocusRevision} diaryMode={diaryMode} query={query} category={highlightCategory} tag={highlightTag} categoryPreview={Boolean(previewCategory)} tagPreview={Boolean(previewTag)} colorMode={colorMode} reducedMotion={reducedMotion} onHoverPost={onHoverPost} onHoverFeature={onHoverFeature} onHoverFriend={onHoverFriend} onHoverDiary={onHoverDiary} onResolvePostAnchor={onResolvePostAnchor} onResolveFeatureAnchor={onResolveFeatureAnchor} onResolveFriendAnchor={onResolveFriendAnchor} onResolveDiaryAnchor={onResolveDiaryAnchor} onSelectPost={selectScenePost} onOpenFeature={openFeature} onSelectFriend={selectFriend} onSelectDiary={openDiaryEntry} hoveredPost={hoveredPost} hoverAnchor={hoverAnchor} hoveredFeature={hoveredFeature} featureAnchor={hoverFeatureAnchor} selectedFriend={activeFriend} friendAnchor={friendAnchor} hoveredDiary={activeDiaryEntry} diaryAnchor={diaryAnchor} diarySingle={diaryBoardSummary} touchPost={touchPost} onCloseTouchPreview={() => setTouchPostId(undefined)} />
           <p className="mobile-town-hint">点击建筑预览，再次点击或选择「阅读文章」打开；单指任意方向拖动小镇，双指捏合缩放。在小镇外滑动可浏览页面。</p>
+          {openDiaryEntryData && <DiaryReadingCard entry={openDiaryEntryData} index={openDiaryIndex} total={diaryOrder.length} onPrev={() => stepDiary(-1)} onNext={() => stepDiary(1)} onClose={() => setOpenDiaryId(undefined)} />}
           <TownStatStrip stats={siteStats} totals={siteTotals} onAbout={() => navigate('about')} />
           <div className="town-mobile-support">
             <div className="town-caption"><span><i className="caption-dot" /> {siteConfig.title} · {SEASON_PROFILES[season].label}季小镇</span><span>建筑即文章 / {layout?.plots.length ?? 0} buildings / {posts.length} article floors</span><span className="caption-spacer" /><a href="/posts/" onClick={(event) => handleInternalClick(event, () => navigate('archive'))}>打开完整档案 {icon('arrow')}</a></div>
@@ -658,7 +685,7 @@ export default function TownBlogApp({ posts, layout, initialSurface = 'town', in
         </section>}
         {surface === 'archive' && <ArchiveView posts={filteredPosts} onOpen={openArticle} />}
         {surface === 'about' && <AboutView counts={{ posts: posts.length, categories: categories.length, tags: tags.length, words: siteStats.words, days: siteStats.days }} totals={siteTotals} />}
-        {surface === 'diary' && <DiaryView hash={navigation.hash} />}
+        {surface === 'diary' && <DiaryView hash={navigation.hash} diaryMode={diaryMode} onChooseMode={chooseDiaryMode} />}
         {surface === 'article' && selectedPost && selectedSections && layout && <ArticleView colorMode={colorMode} navigation={navigation} post={selectedPost} sections={selectedSections} layout={layout} scrollRoot={mainSurfaceRef} onOpen={openArticle} seriesPosts={selectedPost.series ? sortedPosts.filter((post) => post.series === selectedPost.series).sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0)) : []} />}
         {surface === 'article' && selectedPost && !selectedSections && <ArticleLoading post={selectedPost} error={contentError === selectedPost.id} onRetry={() => { setContentError(undefined); setContentRetry((value) => value + 1); }} />}
         {surface === 'article' && !selectedPost && <EmptyView title="还没有选择文章" copy="从小镇或侧边栏打开一篇笔记吧。" action="回到小镇" onAction={() => navigate('town')} />}
@@ -715,6 +742,7 @@ function TownStatStrip({ stats, totals, onAbout }: { stats: ReturnType<typeof cr
     { key: 'words', value: formatWords(stats.words), label: '累计字数' },
     { key: 'posts', value: String(stats.posts), label: '篇文章' },
     { key: 'days', value: String(stats.days), label: '运行天数' },
+    { key: 'pageviews', value: totals ? formatViews(totals.pageviews) : '—', label: '访问量' },
     { key: 'visitors', value: totals ? formatViews(totals.visitors) : '—', label: '访问人数' },
   ];
   return <section className="town-stat-strip" aria-label="站点累计数据">
@@ -1064,7 +1092,50 @@ function DiaryTag({ entry, anchor, single, count }: { entry?: DiaryEntry; anchor
   </div>;
 }
 
-function DiaryView({ hash }: { hash?: string }) {
+/**
+ * Reading card for one short note. It floats over the scene without taking the
+ * town away, so the visitor can keep panning while they read, and clicking
+ * anywhere outside it closes the card.
+ */
+function DiaryReadingCard({ entry, index, total, onPrev, onNext, onClose }: { entry: DiaryEntry; index: number; total: number; onPrev: () => void; onNext: () => void; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { onClose(); return; }
+      if (event.key === 'ArrowLeft') onPrev();
+      if (event.key === 'ArrowRight') onNext();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    // Capture phase so a click on the canvas closes the card instead of
+    // selecting the building underneath it.
+    window.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [onClose, onPrev, onNext]);
+  return <div className="diary-reading-card" ref={panelRef} role="dialog" aria-modal="false" aria-label="短日记内容">
+    <div className="diary-reading-head">
+      <div className="diary-reading-meta"><span>{formatDate(entry.date)}</span>{entry.location && <span>{entry.location}</span>}{entry.mood && <em>{entry.mood}</em>}</div>
+      <button type="button" className="diary-reading-close" aria-label="关闭" onClick={onClose}>{icon('close')}</button>
+    </div>
+    <p className="diary-reading-text">{entry.content}</p>
+    {entry.images?.length ? <div className="diary-reading-images">
+      {entry.images.map((image) => <a key={image.src} href={image.src} target="_blank" rel="noreferrer noopener"><img src={image.src} alt={image.alt} loading="lazy" decoding="async" width={image.width} height={image.height} /></a>)}
+    </div> : null}
+    <div className="diary-reading-actions">
+      <button type="button" onClick={onPrev} disabled={index <= 0} aria-label="上一条">{icon('back')}<span>上一条</span></button>
+      <span className="diary-reading-count">{index + 1} / {total}</span>
+      <button type="button" onClick={onNext} disabled={index >= total - 1} aria-label="下一条"><span>下一条</span>{icon('arrow')}</button>
+    </div>
+    <a className="diary-reading-open" href={`/diary/#${entry.id}`} onClick={(event) => handleInternalClick(event, () => window.location.assign(`/diary/#${entry.id}`))}>打开日记页 {icon('arrow')}</a>
+  </div>;
+}
+
+function DiaryView({ hash, diaryMode, onChooseMode }: { hash?: string; diaryMode: 'district' | 'single'; onChooseMode: (mode: 'district' | 'single') => void }) {
   const entries = useMemo(() => sortedDiaryEntries(), []);
   const groups = useMemo(() => groupDiaryByMonth(entries), [entries]);
   // Boards in the town deep-link to a single note, so honour the hash once the
@@ -1083,6 +1154,13 @@ function DiaryView({ hash }: { hash?: string }) {
   }, [hash]);
   return <section className="diary-page">
     <header className="diary-head">
+      <div className="diary-mode-row">
+        <span className="diary-mode-label">小镇里的样子</span>
+        <div className="diary-mode-switch" role="group" aria-label="短日记在镇上的显示方式">
+          <button type="button" className={diaryMode === 'district' ? 'is-active' : ''} aria-pressed={diaryMode === 'district'} onClick={() => onChooseMode('district')}>街区</button>
+          <button type="button" className={diaryMode === 'single' ? 'is-active' : ''} aria-pressed={diaryMode === 'single'} onClick={() => onChooseMode('single')}>单板</button>
+        </div>
+      </div>
       <span className="section-eyebrow">TOWN NOTICE BOARD · {String(entries.length).padStart(2, '0')} NOTES</span>
       <h1>短日记</h1>
       <p>几句话记录当下。它们不占文章建筑，也不会出现在档案和 RSS 里。</p>
@@ -1138,6 +1216,7 @@ function AboutView({ counts, totals }: { counts: { posts: number; categories: nu
             <div><strong>{counts.posts}</strong><span>文章</span></div>
             <div><strong>{formatWords(counts.words)}</strong><span>累计字数</span></div>
             <div><strong>{counts.days}</strong><span>运行天数</span></div>
+            <div><strong>{totals ? formatViews(totals.pageviews) : '—'}</strong><span>访问量</span></div>
             <div><strong>{totals ? formatViews(totals.visitors) : '—'}</strong><span>访问人数</span></div>
           </div>
           <div className="about-inapp-links">
@@ -1156,9 +1235,9 @@ function AboutView({ counts, totals }: { counts: { posts: number; categories: nu
           <span className="about-inapp-card-index">04</span>
           <h2>找到我</h2>
           <p>有想法、有问题、发现写错了，都可以从这里开始；也可以直接在下面的留言板留一句。</p>
-          <div className="about-links">
-            {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label} ↗</a>)}
-            <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客 ↗</a>
+          <div className="about-inapp-links">
+            {siteConfig.profile.links.map((link) => <a key={link.id} href={link.url} target={link.url.startsWith('http') ? '_blank' : undefined} rel={link.url.startsWith('http') ? 'noreferrer noopener' : undefined}>{link.label}{icon('external')}</a>)}
+            <a href={siteConfig.classicUrl} target="_blank" rel="noreferrer noopener">旧版博客{icon('external')}</a>
           </div>
         </section>
       </div>

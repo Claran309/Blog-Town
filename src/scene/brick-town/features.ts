@@ -1,6 +1,6 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Scene } from '@babylonjs/core/scene.js';
-import type { TownDiaryBoard, TownFeature, TownFriendHut } from '../../data/town-layout';
+import type { TownDiaryBoard, TownDiaryMonthMarker, TownFeature, TownFriendHut } from '../../data/town-layout';
 import { BrickKit, COLORS as C, COURSE as H, STUD as S } from './kit';
 import { FLOOR_HEIGHT, GROUND_Y } from './buildings';
 
@@ -27,25 +27,57 @@ export function buildFeature(scene: Scene, feature: TownFeature, mobile = false)
 export function buildDiaryBoard(scene: Scene, board: TownDiaryBoard, mobile = false) {
   const root = new TransformNode(`diary-board:${board.id}`, scene);
   root.position.set(board.x, GROUND_Y, board.z);
-  root.rotation.y = board.rotation;
+  root.rotation.set(board.tilt, board.rotation, 0);
   const kit = new BrickKit(scene, root, 'plastic', !mobile);
   const id = `diary-board:${board.id}`;
   // Civic-scale board: about one and a half times a house facade, so it reads
   // from the default diorama framing instead of disappearing at map scale.
   const scale = Math.max(1, Math.round((board.width / 1.1) * 10) / 10);
   root.scaling.setAll(scale);
+  const aged = board.state === 'old' || board.state === 'archived';
 
-  // Two-step footing so the board does not float on the plaza paving.
-  kit.brick(0, 0, 0, 3, 2, C.roadLight, H / 3, false, id);
-  kit.brick(0, H / 3, 0, 2, 1, C.sand, H * 0.6, true, id);
+  // Two-step footing so the board does not float on the ground.
+  kit.brick(0, 0, 0, 3, 2, aged ? C.tan : C.roadLight, H / 3, false, id);
+  kit.brick(0, H / 3, 0, 2, 1, aged ? C.brown : C.sand, H * 0.6, true, id);
   const postTop = H / 3 + H * 0.6;
 
-  const anchorY = drawBoardForm(kit, board, id, postTop);
+  let anchorY = 0;
+  if (board.state === 'archived') {
+    anchorY = drawArchived(kit, id, postTop);
+  } else if (board.state === 'old') {
+    anchorY = drawAged(kit, id, postTop);
+  } else if (board.state === 'mid') {
+    anchorY = drawMid(kit, id, postTop, board);
+  } else {
+    anchorY = drawFresh(kit, id, postTop, board);
+  }
 
-  // Two small planters anchor every board to the ground.
-  for (const side of [-1, 1]) {
-    kit.brick(side * 0.60, H / 3, 0.14, 1, 1, C.brown, H * 0.5, false, id);
-    kit.cylinder(side * 0.60, H / 3 + H * 0.5 + 0.06, 0.14, 0.13, 0.10, C.leaf, id);
+  // Weeds and planters accumulate with age.
+  const weeds = board.state === 'new' ? 0 : board.state === 'mid' ? 4 : 8;
+  for (let index = 0; index < weeds; index += 1) {
+    const angle = (index / weeds) * Math.PI * 2;
+    const radius = 0.34 + (index % 2) * 0.06;
+    kit.cylinder(Math.cos(angle) * radius, H / 3 + 0.1 + (index % 3) * 0.06, Math.sin(angle) * radius, 0.11, 0.12, index % 2 ? C.moss : C.leaf, id);
+  }
+  if (board.state === 'new' || board.state === 'mid') {
+    for (const side of [-1, 1]) {
+      kit.brick(side * 0.60, H / 3, 0.14, 1, 1, C.brown, H * 0.5, false, id);
+      kit.cylinder(side * 0.60, H / 3 + H * 0.5 + 0.06, 0.14, 0.13, 0.10, C.leaf, id);
+      if (board.state === 'new') {
+        for (const offset of [-0.05, 0.05]) kit.cylinder(side * 0.60 + offset, H / 3 + H * 0.5 + 0.18, 0.14, 0.07, 0.06, offset < 0 ? C.coral : C.yellow, id);
+      } else {
+        kit.cylinder(side * 0.60, H / 3 + H * 0.5 + 0.18, 0.14, 0.07, 0.06, C.coral, id);
+      }
+    }
+  }
+
+  // A small lamp: bright while in use, dead once archived.
+  const lampLit = board.state === 'new' || board.state === 'mid';
+  kit.box(0, postTop + 2.02, 0.10, 0.10, 0.10, 0.14, C.black, 0, id);
+  kit.box(0, postTop + 1.90, 0.15, 0.14, 0.16, 0.14, lampLit ? C.yellow : '#3a3a30', 0, id, lampLit);
+  if (board.state === 'archived') {
+    // The lamp has come off and lies in the grass.
+    kit.cylinder(0.42, H / 3 + 0.06, 0.34, 0.14, 0.13, '#3a3a30', id);
   }
 
   const meshes = kit.flush(`diary-board:${board.id}`);
@@ -55,94 +87,138 @@ export function buildDiaryBoard(scene: Scene, board: TownDiaryBoard, mobile = fa
   return { root, meshes, board, anchorY };
 }
 
-/**
- * Four silhouettes so a district of notes reads as a lived-in street rather
- * than a row of official notices. Each variant keeps the same footprint so the
- * layout stays stable when the form changes.
- */
-function drawBoardForm(kit: BrickKit, board: TownDiaryBoard, id: string, postTop: number) {
-  switch (board.form) {
-    case 'cork': return drawCorkBoard(kit, id, postTop);
-    case 'chalk': return drawChalkboard(kit, id, postTop);
-    case 'awning': return drawAwningBoard(kit, id, postTop);
-    default: return drawClassicBoard(kit, id, postTop);
-  }
-}
-
-/** Wooden civic board with a shingled hood. */
-function drawClassicBoard(kit: BrickKit, id: string, postTop: number) {
+/** Fresh board: saturated paint, tidy notes, a clean cap. */
+function drawFresh(kit: BrickKit, id: string, postTop: number, board: TownDiaryBoard): number {
+  const paints = [C.coral, C.teal, C.yellow, C.blue];
+  const paint = paints[board.accent % paints.length];
   for (const side of [-1, 1]) {
     kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
-    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, C.navy, 0, id);
+    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, paint, 0, id);
   }
-  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, C.navy, 0, id);
+  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, paint, 0, id);
   kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.ivory, 0, id);
+  kit.box(0, postTop + 1.70, 0, 1.14, 0.04, 0.06, C.ivory, 0, id);
   pinnedNotes(kit, id, postTop + 1.34, [
-    { x: -0.27, y: 0.11, roll: -0.15, w: 0.34, h: 0.24, color: C.yellow },
-    { x: 0.08, y: 0.15, roll: 0.08, w: 0.30, h: 0.28, color: C.ivory },
-    { x: 0.31, y: -0.01, roll: -0.06, w: 0.26, h: 0.22, color: C.coral },
-    { x: -0.04, y: -0.13, roll: 0.04, w: 0.38, h: 0.18, color: C.teal },
+    { x: -0.27, y: 0.12, roll: -0.05, w: 0.30, h: 0.22, color: C.yellow },
+    { x: 0.06, y: 0.15, roll: 0.03, w: 0.26, h: 0.26, color: C.ivory },
+    { x: 0.30, y: 0.02, roll: -0.02, w: 0.24, h: 0.20, color: C.coral },
+    { x: -0.02, y: -0.13, roll: 0.02, w: 0.34, h: 0.16, color: C.teal },
   ]);
-  kit.box(0, postTop + 1.74, 0, 1.24, 0.06, 0.24, C.coral, 0, id);
-  kit.box(0, postTop + 1.78, 0, 1.14, 0.04, 0.18, C.red, 0, id);
+  kit.box(0, postTop + 1.74, 0, 1.22, 0.06, 0.24, paint, 0, id);
   return postTop + 2.05;
 }
 
-/** Cork pin-board: warm board face, no hood, freer note placement. */
-function drawCorkBoard(kit: BrickKit, id: string, postTop: number) {
+/** Middle age: paint still there, a band of weathering, one note askew. */
+function drawMid(kit: BrickKit, id: string, postTop: number, board: TownDiaryBoard): number {
+  const paints = [C.coral, C.teal, C.yellow, C.blue];
+  const paint = paints[board.accent % paints.length];
   for (const side of [-1, 1]) {
-    kit.box(side * 0.50, postTop + 0.78, 0, 0.09, 1.62, 0.09, C.tan, 0, id);
+    kit.box(side * 0.44, postTop + 0.90, 0, 0.11, 1.86, 0.11, C.brown, 0, id);
+    kit.box(side * 0.44, postTop + 1.86, 0, 0.15, 0.07, 0.15, paint, 0, id);
+    // Weathering creeps up from the foot of each post.
+    kit.box(side * 0.44, postTop + 0.30, 0, 0.12, 0.42, 0.12, C.sand, 0, id);
   }
-  kit.box(0, postTop + 1.20, 0, 1.14, 0.76, 0.06, C.tan, 0, id);
-  kit.box(0, postTop + 1.20, 0.04, 1.06, 0.68, 0.02, '#c8a06a', 0, id);
-  pinnedNotes(kit, id, postTop + 1.20, [
-    { x: -0.30, y: 0.16, roll: -0.22, w: 0.26, h: 0.22, color: C.ivory },
-    { x: 0.02, y: 0.19, roll: 0.12, w: 0.22, h: 0.26, color: C.cream },
-    { x: 0.34, y: 0.10, roll: -0.05, w: 0.20, h: 0.20, color: C.yellow },
-    { x: -0.16, y: -0.10, roll: 0.09, w: 0.24, h: 0.20, color: C.coral },
-    { x: 0.22, y: -0.13, roll: -0.11, w: 0.28, h: 0.18, color: C.ivory },
+  kit.box(0, postTop + 1.34, 0, 1.10, 0.70, 0.08, paint, 0, id);
+  kit.box(0, postTop + 1.05, 0, 1.11, 0.18, 0.085, C.sand, 0, id);
+  kit.box(0, postTop + 1.34, 0.05, 1.02, 0.62, 0.03, C.cream, 0, id);
+  pinnedNotes(kit, id, postTop + 1.34, [
+    { x: -0.26, y: 0.12, roll: -0.03, w: 0.28, h: 0.22, color: C.yellow },
+    { x: 0.08, y: 0.14, roll: 0.14, w: 0.24, h: 0.24, color: C.ivory },
+    { x: 0.28, y: -0.06, roll: -0.10, w: 0.22, h: 0.18, color: C.cream },
   ]);
-  return postTop + 1.70;
+  kit.box(0, postTop + 1.74, 0, 1.22, 0.06, 0.24, paint, 0, id);
+  return postTop + 2.05;
 }
 
-/** Chalkboard on a single post, with a little tray of chalk. */
-function drawChalkboard(kit: BrickKit, id: string, postTop: number) {
-  kit.box(0, postTop + 0.62, 0, 0.12, 1.30, 0.12, C.brown, 0, id);
-  kit.box(0, postTop + 1.28, 0, 0.96, 0.68, 0.07, C.brown, 0, id);
-  kit.box(0, postTop + 1.28, 0.05, 0.88, 0.60, 0.03, '#33453f', 0, id);
-  // Chalk marks: short ivory strokes rather than pinned paper.
-  for (const [x, y, w] of [[-0.20, 0.16, 0.34], [0.02, 0.05, 0.42], [0.16, -0.06, 0.30], [-0.10, -0.16, 0.26]]) {
-    kit.box(x, postTop + 1.28 + y, 0.075, w, 0.035, 0.012, C.ivory, 0, id);
-  }
-  kit.box(0, postTop + 0.96, 0.08, 0.52, 0.035, 0.08, C.sand, 0, id);
-  return postTop + 1.62;
-}
-
-/** Board tucked under a striped awning, like a shopfront notice. */
-function drawAwningBoard(kit: BrickKit, id: string, postTop: number) {
+/** Old: bare timber, board seams, one faded note hanging crooked. */
+function drawAged(kit: BrickKit, id: string, postTop: number): number {
   for (const side of [-1, 1]) {
-    kit.box(side * 0.46, postTop + 0.72, 0, 0.10, 1.48, 0.10, C.navy, 0, id);
+    kit.box(side * 0.44, postTop + 0.88, 0, 0.12, 1.82, 0.12, C.brown, 0, id);
+    kit.box(side * 0.44, postTop + 1.84, 0, 0.16, 0.07, 0.16, C.tan, 0, id);
   }
-  kit.box(0, postTop + 1.10, 0, 1.08, 0.64, 0.07, C.navy, 0, id);
-  kit.box(0, postTop + 1.10, 0.045, 1.00, 0.56, 0.03, C.cream, 0, id);
-  pinnedNotes(kit, id, postTop + 1.10, [
-    { x: -0.24, y: 0.08, roll: -0.08, w: 0.32, h: 0.26, color: C.ivory },
-    { x: 0.16, y: 0.12, roll: 0.06, w: 0.28, h: 0.22, color: C.yellow },
-    { x: 0.00, y: -0.14, roll: -0.03, w: 0.36, h: 0.18, color: C.ivory },
+  kit.box(0, postTop + 1.32, 0, 1.10, 0.70, 0.09, C.brown, 0, id);
+  kit.box(0, postTop + 1.32, 0.055, 1.02, 0.62, 0.03, C.tan, 0, id);
+  // Vertical plank seams break the face into boards.
+  for (const x of [-0.30, 0.02, 0.32]) {
+    kit.box(x, postTop + 1.32, 0.075, 0.025, 0.62, 0.02, C.brown, 0, id);
+  }
+  pinnedNotes(kit, id, postTop + 1.32, [
+    { x: -0.12, y: 0.10, roll: -0.19, w: 0.26, h: 0.20, color: C.sand },
+    { x: 0.20, y: -0.09, roll: 0.12, w: 0.22, h: 0.17, color: C.sand },
   ]);
-  // Striped awning: alternating coral and ivory slats.
-  for (let index = 0; index < 6; index++) {
-    kit.box(-0.45 + index * 0.18, postTop + 1.52, 0.10, 0.17, 0.05, 0.34, index % 2 ? C.ivory : C.coral, 0, id);
-  }
-  kit.box(0, postTop + 1.46, 0.26, 1.10, 0.04, 0.06, C.red, 0, id);
-  return postTop + 1.86;
+  // The hood has lost a slat and sags on one side.
+  kit.box(-0.10, postTop + 1.70, 0, 0.92, 0.05, 0.22, C.tan, 0.04, id);
+  return postTop + 2.0;
 }
 
-function pinnedNotes(kit: BrickKit, id: string, centerY: number, notes: { x: number; y: number; roll: number; w: number; h: number; color: string }[]) {
+/** Archived: turned around, showing its frame and a paper tag. */
+function drawArchived(kit: BrickKit, id: string, postTop: number): number {
+  for (const side of [-1, 1]) {
+    kit.box(side * 0.44, postTop + 0.88, 0, 0.12, 1.82, 0.12, C.brown, 0, id);
+    kit.box(side * 0.44, postTop + 1.84, 0, 0.16, 0.07, 0.16, C.tan, 0, id);
+  }
+  // Back face: horizontal battens instead of a painted panel.
+  for (const y of [1.02, 1.24, 1.46, 1.68]) {
+    kit.box(0, postTop + y, -0.03, 1.06, 0.10, 0.06, C.tan, 0, id);
+  }
+  kit.box(0, postTop + 1.32, 0, 1.08, 0.70, 0.05, C.brown, 0, id);
+  // A small paper tag on a string.
+  kit.box(0.10, postTop + 1.10, -0.07, 0.30, 0.22, 0.02, C.ivory, 0.12, id);
+  kit.box(0.10, postTop + 1.24, -0.075, 0.02, 0.14, 0.02, C.navy, 0, id);
+  // Stacked crates at the foot.
+  kit.box(-0.55, H / 3 + 0.16, 0.18, 0.42, 0.32, 0.38, C.tan, 0.2, id);
+  kit.box(-0.52, H / 3 + 0.44, 0.20, 0.34, 0.26, 0.32, C.brown, -0.12, id);
+  return postTop + 1.95;
+}
+
+function pinnedNotes(kit: BrickKit, id: string, centerY: number, notes: { x: number; y: number; roll: number; w: number; h: number; color: string }[]): void {
   for (const note of notes) {
     kit.rolledBox(note.x, centerY + note.y, 0.08, note.w, note.h, 0.012, note.roll, note.color, 0, id);
     kit.box(note.x, centerY + note.y + note.h / 2 - 0.025, 0.09, 0.05, 0.05, 0.02, C.red, 0, id);
   }
+}
+
+/** Brick month marker: two 2x4 digits stacked on a stone plinth. */
+export function buildDiaryMonthMarker(scene: Scene, marker: TownDiaryMonthMarker, mobile = false) {
+  const root = new TransformNode(`diary-month:${marker.key}`, scene);
+  root.position.set(marker.x, GROUND_Y, marker.z);
+  root.rotation.y = marker.rotation;
+  const kit = new BrickKit(scene, root, 'plastic', !mobile);
+  const id = `diary-month:${marker.key}`;
+  // A low stone plinth carries two squat digits side by side. Stacking them
+  // vertically made a column that towered over the boards; this reads as a
+  // milestone instead.
+  kit.brick(0, 0, 0, 2, 2, C.roadLight, H / 3, false, id);
+  const cell = 0.24;
+  const base = H / 3 + H * 0.4;
+  const digitWidth = cell * 2;
+  const digitHeight = cell * 4;
+  // Backing plate so the digits stay legible against grass.
+  kit.box(0, base + digitHeight / 2, -0.10, digitWidth * 2 + cell * 1.2, digitHeight + cell * 0.6, 0.06, C.cream, 0, id);
+  [marker.digits[0], marker.digits[1]].forEach((digit, digitIndex) => {
+    const originX = (digitIndex - 0.5) * (digitWidth + cell * 0.6);
+    digit.forEach((row, rowIndex) => {
+      for (let col = 0; col < row.length; col += 1) {
+        if (row[col] !== '#') continue;
+        kit.brick(
+          originX + (col - 0.5) * cell,
+          base + (3 - rowIndex) * cell,
+          0.02,
+          1,
+          1,
+          C.blue,
+          cell,
+          false,
+          id,
+        );
+      }
+    });
+  });
+  const meshes = kit.flush(`diary-month:${marker.key}`);
+  for (const mesh of meshes) {
+    mesh.metadata = { ...mesh.metadata, diaryMonth: marker.key };
+  }
+  return { root, meshes, marker, anchorY: base + digitHeight };
 }
 
 /**

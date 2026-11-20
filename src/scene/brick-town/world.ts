@@ -32,7 +32,9 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   const inHamletLane = (p: Point, clearance = 0) => !!hamlet && createPathProximity(samplePath(hamlet.path, 12))(p, 0.62 + clearance);
   // The diary quarter mirrors the friend hamlet: a clear green with its own
   // lane, so the boards read as a separate place instead of street clutter.
-  const inDiaryGreen = (p: Point, clearance = 0) => !!diary && Math.hypot(p.x - diary.x, p.z - diary.z) < diary.radius + clearance;
+  const inDiaryGreen = (p: Point, clearance = 0) => !!diary
+    && p.x > diary.bounds.minX - clearance && p.x < diary.bounds.maxX + clearance
+    && p.z > diary.bounds.minZ - clearance && p.z < diary.bounds.maxZ + clearance;
   const inDiaryLane = (p: Point, clearance = 0) => !!diary && createPathProximity(samplePath(diary.path, 12))(p, 0.62 + clearance);
   const access = layout.plots.map(plot=>createPathProximity(makeThiefArrivalRoute(plot,townTravelRoutes,samplePath,layout.plots)));
   const isRoad = (p: Point, clearance = 0) => access.some(near=>near(p,0.30+clearance))||roads.some(r => r.near(p,r.width / 2 + clearance)) || inHamletLane(p, clearance) || inDiaryLane(p, clearance) || Math.hypot(p.x,p.z) < townCenterRoundaboutRadius + clearance;
@@ -237,7 +239,7 @@ export function buildWorld(scene: Scene, layout: TownLayout, mobile = false) {
   // reads as its own plot without adding a solid fence the camera must cross.
   // Both satellite quarters get the same low white boundary posts, so the town
   // reads as a settlement with outlying places rather than one blob.
-  for (const quarter of [hamlet, diary].filter((value): value is NonNullable<typeof value> => Boolean(value))) {
+  for (const quarter of [hamlet].filter((value): value is NonNullable<typeof value> => Boolean(value))) {
     const postCount = 26;
     for (let index = 0; index < postCount; index += 1) {
       const angle = (index / postCount) * Math.PI * 2;
