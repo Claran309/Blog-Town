@@ -293,7 +293,15 @@ const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
 // Candidate distances from the road centreline, all on the house-free side.
 // Boards step further out rather than crossing the road.
-const DIARY_OFFSETS = [3.2, 4.0, 4.8, 5.6];
+const DIARY_OFFSETS = [3.2, 4.2, 5.2, 6.4, 7.6, 8.8];
+// The diorama camera sits at alpha = 0.68pi; "away" is the opposite direction,
+// so anything placed along it lands behind the road from the viewer's side.
+const DIARY_AWAY_X = -Math.cos(Math.PI * 0.68);
+const DIARY_AWAY_Z = -Math.sin(Math.PI * 0.68);
+// Unit vector from any point toward the camera, used for sightline tests.
+const DIARY_CAMERA_X = Math.cos(Math.PI * 0.68);
+const DIARY_CAMERA_Z = Math.sin(Math.PI * 0.68);
+const awaySign = (nx: number, nz: number) => (nx * DIARY_AWAY_X + nz * DIARY_AWAY_Z >= 0 ? 1 : -1);
 const DIARY_ROW_NEAR = 2.15;
 const DIARY_ROW_FAR = 3.65;
 const DIARY_LANE_START = 6.4;
@@ -374,6 +382,25 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   const { lengths } = laneGeometry();
   const laneLength = lengths.at(-1) ?? 0;
   const slots: { along: number; offset: number }[] = [];
+  // A board needs breathing room from any facade: at map scale a house one
+  // stud away still covers it.
+  const tooCloseToBuilding = (x: number, z: number) => existingPlots.some((plot) =>
+    Math.abs(x - plot.x) < (DIARY_BOARD_WIDTH + plot.width) / 2 + 1.5
+    && Math.abs(z - plot.z) < (DIARY_BOARD_DEPTH + plot.depth) / 2 + 1.5);
+  // Sitting on the far side of the road is not enough: a house between the
+  // board and the camera hides it completely. Walk from the board toward the
+  // camera and reject any spot whose sightline crosses a building footprint.
+  const sightlineBlocked = (x: number, z: number) => {
+    const step = 0.35;
+    for (let distance = 0.6; distance <= 9; distance += step) {
+      const sx = x + DIARY_CAMERA_X * distance;
+      const sz = z + DIARY_CAMERA_Z * distance;
+      if (existingPlots.some((plot) =>
+        Math.abs(sx - plot.x) < plot.width / 2 + 0.1
+        && Math.abs(sz - plot.z) < plot.depth / 2 + 0.1)) return true;
+    }
+    return false;
+  };
   const blocked = (x: number, z: number) => {
     if (Math.hypot(x, z) < 4.4) return true;
     for (const plot of existingPlots) {
@@ -398,16 +425,15 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
     const point = laneAt(along);
     if (point.x > DIARY_MAX_X) break;
-    // Place every board on the far side of the road: the side facing away
-    // from the camera, so the row sits behind the carriageway instead of in
-    // front of it. The camera looks from (cos a, sin a) with a = 0.68 pi.
-    const awayX = Math.cos(Math.PI * 0.68) * -1;
-    const awayZ = Math.sin(Math.PI * 0.68) * -1;
-    const sign = point.nx * awayX + point.nz * awayZ >= 0 ? 1 : -1;
+    // Boards always sit on the far side of the road, and keep a real gap from
+    // any building so a facade never hides them.
+    const sign = awaySign(point.nx, point.nz);
     for (const offset of DIARY_OFFSETS) {
       const x = point.x + point.nx * offset * sign;
       const z = point.z + point.nz * offset * sign;
       if (blocked(x, z)) continue;
+      if (tooCloseToBuilding(x, z)) continue;
+      if (sightlineBlocked(x, z)) continue;
       slots.push({ along, offset: offset * sign });
       break;
     }
@@ -499,10 +525,10 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     if (!currentKey || currentKey === previousKey) continue;
     const along = (spaced[index - 1].along + spaced[index].along) / 2;
     const point = laneAt(along);
-    // Stand the divider behind the row (further from the road) so it never
-    // shares ground with a board.
-    const sign = point.nz >= 0 ? 1 : -1;
-    const offset = 5.9;
+    // Same side as the boards, a little further back, so the divider reads as
+    // part of the row instead of drifting to the opposite verge.
+    const sign = awaySign(point.nx, point.nz);
+    const offset = 6.6;
     months.push({
       key: currentKey,
       month: Number(currentKey.slice(5, 7)),
