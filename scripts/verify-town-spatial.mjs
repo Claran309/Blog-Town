@@ -232,8 +232,15 @@ for (const notice of withDiary.diary.boards) {
 // The lane is capped: extra notes are filed in the archive cluster instead.
 const manyDiary = Array.from({ length: 20 }, (_, index) => ({ id: `note-${index + 1}`, date: `2026-${String(12 - Math.floor(index / 4)).padStart(2, '0')}-01` }));
 const crowded = layoutModule.createTownLayout('claran-town-v1', samplePosts, friends, manyDiary).diary;
-assert(crowded.boards.length === 12, `lane must hold 12 boards, got ${crowded.boards.length}`);
-assert(crowded.archived.length === 8, `overflow must be archived, got ${crowded.archived.length}`);
+assert(crowded.boards.length > 0 && crowded.boards.length < manyDiary.length, `lane must be capped, got ${crowded.boards.length}`);
+assert(crowded.archived.length === manyDiary.length - crowded.boards.length, 'every overflow note must be archived');
+// Boards follow the east road: they must never sit on its carriageway.
+for (const notice of [...crowded.boards, ...crowded.archived]) {
+  for (const region of layoutModule.worldRegions) {
+    if (region.kind !== 'road') continue;
+    assert(!spatial.pointInPolygon({ x: notice.x, z: notice.z }, region.polygon), `diary board ${notice.id} sits on ${region.id}`);
+  }
+}
 for (const notice of crowded.archived) {
   assert(notice.state === 'archived', 'archived notes must use the archived state');
   assert(Math.abs(notice.tilt) > 0.1, 'archived notes must lean');

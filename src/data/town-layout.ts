@@ -293,11 +293,11 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
 const DIARY_BOARD_WIDTH = 1.45;
 const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
-const DIARY_ROW_NEAR = 1.5;
-const DIARY_ROW_FAR = 2.9;
-const DIARY_LANE_START = 1.3;
-const DIARY_LANE_END_PAD = 2.0;
-const DIARY_LANE_STEP = 1.9;
+const DIARY_ROW_NEAR = 1.55;
+const DIARY_ROW_FAR = 3.05;
+const DIARY_LANE_START = 6.4;
+const DIARY_LANE_END_PAD = 3.0;
+const DIARY_LANE_STEP = 2.6;
 const DIARY_ARCHIVE_OFFSET = 1.9;
 const DIARY_ARCHIVE_STEP = 0.8;
 const DIARY_ARCHIVE_TILT = 0.21;
@@ -340,7 +340,7 @@ const DIARY_DIGITS: Record<string, string[]> = {
 let laneCache: { samples: Point[]; lengths: number[] } | undefined;
 const laneGeometry = () => {
   if (!laneCache) {
-    const samples = samplePath(HAMLET_PATH, 40);
+    const samples = samplePath(roadCenterlines.east, 40);
     const lengths = [0];
     for (let index = 1; index < samples.length; index += 1) {
       const previous = samples[index - 1];
@@ -352,7 +352,7 @@ const laneGeometry = () => {
   return laneCache;
 };
 
-/** Point and unit tangent at a distance along the hamlet lane. */
+/** Point and unit tangent at a distance along the east road. */
 const laneAt = (distance: number) => {
   const { samples, lengths } = laneGeometry();
   const total = lengths[lengths.length - 1];
@@ -376,26 +376,60 @@ const laneAt = (distance: number) => {
  * them based on the visitor's choice, so switching never has to rebuild the
  * town or move an article building.
  */
-export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[]): TownDiaryDistrict | undefined => {
+export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlots: TownPlot[] = []): TownDiaryDistrict | undefined => {
   if (!entries.length) return undefined;
 
-  // Walk the lane and collect board slots: alternating rows, newest first.
+  // Walk the east road and keep only slots that clear every article building,
+  // the hamlet and the other roads. A fixed step would collide with the houses
+  // that already front this street, so the lane probes instead of assuming.
+  const { lengths } = laneGeometry();
+  const laneLength = lengths.at(-1) ?? 0;
   const slots: { along: number; offset: number }[] = [];
-  const laneLength = laneGeometry().lengths.at(-1) ?? 0;
-  const last = laneLength - DIARY_LANE_END_PAD;
-  for (let index = 0; ; index += 1) {
-    const along = DIARY_LANE_START + Math.floor(index / 2) * DIARY_LANE_STEP + (index % 2 ? DIARY_LANE_STEP / 2 : 0);
-    if (along > last) break;
-    slots.push({ along, offset: index % 2 ? DIARY_ROW_FAR : DIARY_ROW_NEAR });
+  const blocked = (x: number, z: number) => {
+    if (Math.hypot(x, z) < 4.4) return true;
+    for (const plot of existingPlots) {
+      if (Math.abs(x - plot.x) < (DIARY_BOARD_WIDTH + plot.width) / 2 + 0.28
+        && Math.abs(z - plot.z) < (DIARY_BOARD_DEPTH + plot.depth) / 2 + 0.28) return true;
+    }
+    for (const entity of townEntities) {
+      if (Math.abs(x - entity.x) < (DIARY_BOARD_WIDTH + entity.width) / 2 + 0.2
+        && Math.abs(z - entity.z) < (DIARY_BOARD_DEPTH + entity.depth) / 2 + 0.2) return true;
+    }
+    // Keep clear of the road surface itself and every branch/ring corridor.
+    for (const region of worldRegions) {
+      if (region.kind !== 'road') continue;
+      if (pointInPolygon({ x, z }, region.polygon)) return true;
+    }
+    return false;
+  };
+  for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
+    const point = laneAt(along);
+    // Prefer the near side, but step across the road when a house occupies it.
+    const near = { along, offset: DIARY_ROW_NEAR };
+    const far = { along, offset: -DIARY_ROW_NEAR };
+    const nearPoint = { x: point.x + point.nx * near.offset, z: point.z + point.nz * near.offset };
+    const farPoint = { x: point.x + point.nx * far.offset, z: point.z + point.nz * far.offset };
+    if (!blocked(nearPoint.x, nearPoint.z)) slots.push(near);
+    else if (!blocked(farPoint.x, farPoint.z)) slots.push(far);
   }
-  const capacity = slots.length;
+  // Drop slots that crowd the previous one so the row keeps an even rhythm.
+  const spaced: typeof slots = [];
+  for (const slot of slots) {
+    const point = laneAt(slot.along);
+    const x = point.x + point.nx * slot.offset;
+    const z = point.z + point.nz * slot.offset;
+    if (spaced.some((other) => {
+      const otherPoint = laneAt(other.along);
+      return Math.hypot(x - (otherPoint.x + otherPoint.nx * other.offset), z - (otherPoint.z + otherPoint.nz * other.offset)) < DIARY_LANE_STEP;
+    })) continue;
+    spaced.push(slot);
+  }
+  const capacity = spaced.length;
 
   const toBoard = (entry: LayoutDiaryEntry, slot: { along: number; offset: number }, index: number): TownDiaryBoard => {
     const point = laneAt(slot.along);
     const x = point.x + point.nx * slot.offset;
     const z = point.z + point.nz * slot.offset;
-    // Faces the camera like the rest of the town; a tiny yaw keeps the row
-    // from looking machine-set.
     const jitter = (index % 3) - 1;
     return {
       id: entry.id,
@@ -414,20 +448,21 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[]): TownDiaryD
   const activeEntries = entries.slice(0, capacity);
   const overflowEntries = entries.slice(capacity);
 
+  // Split the notes that are actually present into thirds, so a short lane
+  // still shows all three weathering tiers instead of only the fresh ones.
+  const boardCount = activeEntries.length;
+  const thirdSize = Math.max(1, Math.ceil(boardCount / 3));
   const boards = activeEntries.map((entry, index) => {
-    const board = toBoard(entry, slots[index], index);
-    // Age runs from the town end outward, split into thirds.
-    const third = Math.floor(index / Math.max(1, Math.ceil(capacity / 3)));
+    const board = toBoard(entry, spaced[index], index);
+    const third = Math.floor(index / thirdSize);
     board.state = third <= 0 ? 'new' : third === 1 ? 'mid' : 'old';
     board.tilt = board.state === 'new' ? 0 : board.state === 'mid' ? 0.026 : 0.052;
     return board;
   });
 
-  // Overflow is archived at the far end: a leaning cluster, turned away from
-  // the lane so it reads as "filed", not "still in use".
-  const end = laneAt(last);
+  const endPoint = laneAt(laneLength - DIARY_LANE_END_PAD / 2);
   const archived: TownDiaryBoard[] = overflowEntries.map((entry, index) => {
-    const along = last + DIARY_ARCHIVE_STEP * (index + 1);
+    const along = laneLength - DIARY_LANE_END_PAD / 2 + DIARY_ARCHIVE_STEP * (index + 1);
     const point = laneAt(along);
     const x = point.x + point.nx * DIARY_ARCHIVE_OFFSET;
     const z = point.z + point.nz * DIARY_ARCHIVE_OFFSET;
@@ -445,15 +480,12 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[]): TownDiaryD
     };
   });
 
-  // A month marker stands between the rows at each month boundary.
   const months: TownDiaryMonthMarker[] = [];
   for (let index = 1; index < activeEntries.length; index += 1) {
-    const previous = activeEntries[index - 1];
-    const current = activeEntries[index];
-    const previousKey = (previous.date ?? '').slice(0, 7);
-    const currentKey = (current.date ?? '').slice(0, 7);
+    const previousKey = (activeEntries[index - 1].date ?? '').slice(0, 7);
+    const currentKey = (activeEntries[index].date ?? '').slice(0, 7);
     if (!currentKey || currentKey === previousKey) continue;
-    const along = (slots[index - 1].along + slots[index].along) / 2;
+    const along = (spaced[index - 1].along + spaced[index].along) / 2;
     const point = laneAt(along);
     const month = Number(currentKey.slice(5, 7));
     const label = String(month).padStart(2, '0');
@@ -478,13 +510,13 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[]): TownDiaryD
   return {
     id: 'diary-district',
     kind: 'diary',
-    x: end.x,
-    z: end.z,
+    x: endPoint.x,
+    z: endPoint.z,
     boards,
     archived,
     months,
     singleBoard: DIARY_SINGLE,
-    path: HAMLET_PATH,
+    path: roadCenterlines.east,
     bounds,
   };
 };
@@ -874,7 +906,6 @@ export const createTownLayout = (
 ): TownLayout => {
   const groups = groupPosts(posts);
   const hamlet = createTownHamlet(friends.map((friend) => friend.id));
-  const diaryDistrict = createTownDiaryDistrict(diary);
   const presets = stableArticlePlots[seed] ?? {};
   const orderedGroups = [...groups].sort((a, b) => {
     const aPreset = presets[groupKey(a)];
@@ -928,6 +959,8 @@ export const createTownLayout = (
     const capacity = ringCapacity.get(placedRing) ?? 0;
     if (capacity > 0 && (ringOccupied.get(placedRing) ?? 0) / capacity >= unlockThreshold) unlockedRing = Math.max(unlockedRing, placedRing + 1);
   });
+
+  const diaryDistrict = createTownDiaryDistrict(diary, plots);
 
   // Reserve empty lots using the exact same collision contract as article lots.
   // Empty lots are visible as clear space only; they never become buildings.
