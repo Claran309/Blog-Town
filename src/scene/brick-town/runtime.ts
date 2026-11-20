@@ -31,7 +31,6 @@ import { clampToPanBounds, getCameraPanBounds, getDragPanDelta } from './view';
 export type SceneState = Pick<TownSceneProps,'activePostId'|'hoveredPostId'|'hoveredFeatureId'|'hoveredFriendId'|'selectedFriendId'|'focusedFriendId'|'hoveredDiaryId'|'focusedDiaryId'|'diaryFocusRevision'|'diaryMode'|'newPostIds'|'guidePostId'|'query'|'category'|'tag'|'colorMode'|'reducedMotion'|'season'>;
 export type SceneCallbacks = Pick<TownSceneProps,'onHoverPost'|'onHoverFeature'|'onHoverFriend'|'onHoverDiary'|'onResolvePostAnchor'|'onResolveFeatureAnchor'|'onResolveFriendAnchor'|'onResolveDiaryAnchor'|'onSelectPost'|'onOpenFeature'|'onSelectFriend'|'onSelectDiary'|'onTownExplored'> & {
   onResolveNewPostAnchors?: (frame: PostNoticeFrame) => void;
-  onResolveMonthAnchors?: (marks: import('./types').MonthAnchor[]) => void;
 };
 const color=(hex:string)=>Color3.FromHexString(hex);
 // Discover desktop AO while React hydrates, not after scene construction. Its
@@ -356,15 +355,7 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     const a={x:rect.left+p.x*rect.width/engine.getRenderWidth(),y:rect.top+p.y*rect.height/engine.getRenderHeight()};
     callbacks().onResolveFriendAnchor(id,a);return a;
   }
-  function anchorMonths(){
-    const rect=canvas.getBoundingClientRect();
-    const marks=diaryMonths.map(marker=>{
-      const point=new Vector3(marker.marker.x,GROUND_Y+marker.anchorY,marker.marker.z);
-      const p=Vector3.Project(point,Matrix.Identity(),scene.getTransformMatrix(),camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight()));
-      return { key:marker.marker.key, month:marker.marker.month, x:rect.left+p.x*rect.width/engine.getRenderWidth(), y:rect.top+p.y*rect.height/engine.getRenderHeight() };
-    });
-    callbacks().onResolveMonthAnchors?.(marks);
-  }
+
   function anchorDiary(id:string){
     const board=diaryById.get(id);if(!board)return;
     const point=new Vector3(board.board.x,GROUND_Y+board.anchorY,board.board.z);
@@ -564,7 +555,6 @@ export function mountBrickTown(canvas:HTMLCanvasElement,layout:TownLayout,posts:
     const renderStarted=performance.now();scene.render();const renderCost=performance.now()-renderStarted;frames++;
     const noticeFrame=postNotices.project(state.newPostIds, state.guidePostId, canvas.clientWidth, canvas.clientHeight);
     if(noticeFrame)callbacks().onResolveNewPostAnchors?.(noticeFrame);
-    anchorMonths();
     if(!firstFramePublished&&scene.isReady()){
       // A render call can finish while shader/texture imports are still pending.
       // Keep the loader until the base town can actually be drawn.

@@ -41,8 +41,6 @@ export type TownPost = TownPostSummary & {
 
 export type SceneAnchor = { x: number; y: number };
 
-/** Screen position of one month marker, projected each frame. */
-export type MonthAnchor = { key: string; month: number; x: number; y: number };
 
 export type TownSceneProps = {
   posts: TownPostSummary[];

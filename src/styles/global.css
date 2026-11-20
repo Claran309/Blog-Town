@@ -1864,9 +1864,6 @@ a.touch-preview-read,
 .diary-mode-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .diary-mode-label { color: var(--muted-2); font-family: var(--mono); font-size: 9px; letter-spacing: .08em; }
 
-/* ---- Month label projected above each lane divider ---- */
-.town-month-label { position: fixed; z-index: 12; transform: translate(-50%, -100%); padding: 3px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 82%, transparent); color: var(--paper-3); font-family: var(--mono); font-size: 10px; letter-spacing: .04em; white-space: nowrap; pointer-events: none; }
-.mode-night .town-month-label { background: rgba(17, 28, 47, .9); color: #e2e8f0; }
 
 /* Right-edge flip: keep the card inside the viewport instead of clipping it. */
 .town-tooltip.is-flipped { transform: translate(calc(-100% - 15px), -100%); }

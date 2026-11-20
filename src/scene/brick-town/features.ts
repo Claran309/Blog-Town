@@ -191,31 +191,66 @@ function pinnedNotes(kit: BrickKit, id: string, centerY: number, notes: { x: num
 }
 
 /** Brick month marker: two 2x4 digits stacked on a stone plinth. */
+/**
+ * Month divider: a small tree, not a sign. The town already speaks in trees and
+ * seasons, so the month is told by colour rather than by text or digits:
+ * spring pink, summer green, autumn amber, winter bare. The trunk keeps a
+ * notch per month so the count is still readable up close.
+ */
+const MONTH_LEAF: Record<number, string> = {
+  1: '#8fa58c', 2: '#8fa58c', 3: '#e7b3c4', 4: '#e7b3c4', 5: '#e7b3c4',
+  6: '#739546', 7: '#739546', 8: '#739546',
+  9: '#d08a3e', 10: '#c4692f', 11: '#b06a3a', 12: '#9aa79b',
+};
+
 export function buildDiaryMonthMarker(scene: Scene, marker: TownDiaryMonthMarker, mobile = false) {
   const root = new TransformNode(`diary-month:${marker.key}`, scene);
   root.position.set(marker.x, GROUND_Y, marker.z);
   root.rotation.y = marker.rotation;
   const kit = new BrickKit(scene, root, 'plastic', !mobile);
   const id = `diary-month:${marker.key}`;
-  // A small signpost, not a sculpture: a low post with a coloured plate whose
-  // band count encodes the month (one band per month). Brick digits at this
-  // scale read as noise, so the count is the readable signal.
+  const leaf = MONTH_LEAF[Math.max(1, Math.min(12, marker.month))] ?? C.leaf;
+  const bare = marker.month === 12 || marker.month === 1 || marker.month === 2;
+
+  // A little planted tree, matching the town's own trees: stone bed, short
+  // trunk, wide low crown. Colour carries the season; the trunk notches carry
+  // the month count up close.
   kit.brick(0, 0, 0, 2, 2, C.roadLight, H / 3, false, id);
-  kit.box(0, H / 3 + 0.52, 0, 0.12, 1.04, 0.12, C.brown, 0, id);
-  const plateY = H / 3 + 1.02;
-  kit.box(0, plateY, 0, 0.62, 0.44, 0.07, C.cream, 0, id);
-  // Month bands: 1..12 short ivory marks in two columns of six.
-  const bands = Math.max(1, Math.min(12, marker.month));
-  for (let index = 0; index < bands; index += 1) {
-    const column = index < 6 ? -1 : 1;
-    const row = index % 6;
-    kit.box(column * 0.13, plateY + 0.16 - row * 0.062, 0.045, 0.17, 0.032, 0.02, C.coral, 0, id);
+  kit.brick(0, H / 3, 0, 2, 2, C.moss, H * 0.35, false, id);
+  const baseY = H / 3 + H * 0.35;
+  const trunk = Math.min(4, Math.max(2, Math.ceil(marker.month / 4)));
+  for (let index = 0; index < trunk; index += 1) {
+    kit.brick(0, baseY + index * H * 0.85, 0, 1, 1, C.brown, H * 0.85, false, id);
   }
+  const crownY = baseY + trunk * H * 0.85;
+
+  if (bare) {
+    // Winter: a bare fork, no canopy.
+    for (const [dx, dz] of [[-0.2, 0], [0.2, 0], [0, -0.2], [0, 0.2]]) {
+      kit.brick(dx, crownY, dz, 1, 1, C.brown, H * 0.8, false, id);
+    }
+    kit.brick(0, crownY + H * 0.8, 0, 1, 1, '#c3c9b8', H * 0.45, true, id);
+  } else {
+    // Wide, squat canopy so it reads as a shrub at map scale, not a post.
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        kit.brick(dx * 0.24, crownY, dz * 0.24, 1, 1, leaf, H * 1.15, true, id);
+      }
+    }
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        if (Math.abs(dx) === 1 && Math.abs(dz) === 1) continue;
+        kit.brick(dx * 0.18, crownY + H * 1.15, dz * 0.18, 1, 1, leaf, H * 1.0, true, id);
+      }
+    }
+    kit.brick(0, crownY + H * 2.15, 0, 1, 1, leaf, H * 0.6, true, id);
+  }
+
   const meshes = kit.flush(`diary-month:${marker.key}`);
   for (const mesh of meshes) {
     mesh.metadata = { ...mesh.metadata, diaryMonth: marker.key };
   }
-  return { root, meshes, marker, anchorY: plateY + 0.32 };
+  return { root, meshes, marker, anchorY: crownY + H * 2.4 };
 }
 
 /**
