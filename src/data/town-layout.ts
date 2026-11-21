@@ -285,33 +285,32 @@ export const createTownHamlet = (friendIds: string[]): TownHamlet | undefined =>
   };
 };
 
-// Diary boards line the lane that leads out to the friend hamlet, on its town
-// side. The newest note sits closest to town and time recedes down the lane.
-// Two staggered rows keep the strip readable without turning it into a fence.
-const DIARY_BOARD_WIDTH = 1.45;
+// Diary boards line the outer stretch of the east road, below the friend
+// hamlet on screen. The newest note sits closest to town and time recedes down
+// the lane. A single straight row on the far verge reads as one quiet line of
+// notices well clear of the plaza.
+const DIARY_BOARD_WIDTH = 1.3;
 const DIARY_BOARD_DEPTH = 0.66;
 const DIARY_FORMS: TownDiaryBoard['form'][] = ['board', 'cork', 'chalk', 'awning'];
-// Candidate distances from the road centreline, all on the house-free side.
-// Boards step further out rather than crossing the road.
-const DIARY_OFFSETS = [3.0, 3.8, 4.6, 5.4, 6.2, 7.0, 7.8, 8.6, 9.4, 10.2];
-// The diorama camera sits at alpha = 0.68pi; "away" is the opposite direction,
-// so anything placed along it lands behind the road from the viewer's side.
-const DIARY_AWAY_X = -Math.cos(Math.PI * 0.68);
-const DIARY_AWAY_Z = -Math.sin(Math.PI * 0.68);
-// Unit vector from any point toward the camera, used for sightline tests.
-const DIARY_CAMERA_X = Math.cos(Math.PI * 0.68);
-const DIARY_CAMERA_Z = Math.sin(Math.PI * 0.68);
-const awaySign = (nx: number, nz: number) => (nx * DIARY_AWAY_X + nz * DIARY_AWAY_Z >= 0 ? 1 : -1);
-const DIARY_ROW_NEAR = 2.15;
-const DIARY_ROW_FAR = 3.65;
-const DIARY_LANE_START = 6.4;
-const DIARY_LANE_END_PAD = 3.0;
-// The camera cannot pan past roughly x 28, so boards stop before the board edge.
-const DIARY_MAX_X = 26.0;
-// The lane runs west, so the reachable limit is negative.
-const DIARY_LANE_STEP = 2.35;
+// Distance from the road centreline to the single board line. The row stands on
+// the far verge, well clear of both the carriageway and the houses, so the
+// notices read as a quiet row on the edge of town.
+const DIARY_ROW_OFFSET = 2.6;
+// The board line runs parallel to the road axis rather than following its
+// curve, so all nine notices sit on one genuinely straight line.
+const DIARY_LINE_ORIGIN = { x: 0.1, z: 0.1 } as const;
+const DIARY_LINE_END = { x: 38, z: 11.8 } as const;
+// The lane begins out past the last plaza frontage so the row sits on the
+// quiet outer road instead of hugging the town buildings. The wider pitch
+// leaves visible grass between boards.
+const DIARY_LANE_START = 13.0;
+const DIARY_LANE_END_PAD = 2.0;
+const DIARY_LANE_STEP = 1.9;
+// The row is a readable strip, not an endless fence: anything past this many
+// notices is filed into the archive cluster at the end of the lane.
+const DIARY_MAX_BOARDS = 9;
 const DIARY_ARCHIVE_OFFSET = 1.9;
-const DIARY_ARCHIVE_STEP = 0.72;
+const DIARY_ARCHIVE_STEP = 0.9;
 const DIARY_ARCHIVE_TILT = 0.21;
 
 /** One civic notice board beside the windmill, used in \`single\` mode. */
@@ -333,42 +332,6 @@ const DIARY_SINGLE: TownDiaryBoard = {
 };
 
 
-// Sampled lazily: the lane helpers live above samplePath's definition in this
-// module, so they must not run at module-evaluation time.
-let laneCache: { samples: Point[]; lengths: number[] } | undefined;
-const laneGeometry = () => {
-  if (!laneCache) {
-    const samples = samplePath(roadCenterlines.west, 40);
-    const lengths = [0];
-    for (let index = 1; index < samples.length; index += 1) {
-      const previous = samples[index - 1];
-      const current = samples[index];
-      lengths.push(lengths[index - 1] + Math.hypot(current.x - previous.x, current.z - previous.z));
-    }
-    laneCache = { samples, lengths };
-  }
-  return laneCache;
-};
-
-/** Point and unit tangent at a distance along the east road. */
-const laneAt = (distance: number) => {
-  const { samples, lengths } = laneGeometry();
-  const total = lengths[lengths.length - 1];
-  const clamped = Math.max(0, Math.min(total, distance));
-  let index = 1;
-  while (index < lengths.length - 1 && lengths[index] < clamped) index += 1;
-  const previous = samples[index - 1];
-  const current = samples[index];
-  const segment = Math.max(1e-6, lengths[index] - lengths[index - 1]);
-  const t = (clamped - lengths[index - 1]) / segment;
-  const x = previous.x + (current.x - previous.x) * t;
-  const z = previous.z + (current.z - previous.z) * t;
-  const dx = current.x - previous.x;
-  const dz = current.z - previous.z;
-  const length = Math.hypot(dx, dz) || 1;
-  return { x, z, tx: dx / length, tz: dz / length, nx: -dz / length, nz: dx / length };
-};
-
 /**
  * Both diary layouts are always present in the data. The scene renders one of
  * them based on the visitor's choice, so switching never has to rebuild the
@@ -377,17 +340,9 @@ const laneAt = (distance: number) => {
 export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlots: TownPlot[] = []): TownDiaryDistrict | undefined => {
   if (!entries.length) return undefined;
 
-  // Walk the east road and keep only slots that clear every article building,
-  // the hamlet and the other roads. A fixed step would collide with the houses
-  // that already front this street, so the lane probes instead of assuming.
-  const { lengths } = laneGeometry();
-  const laneLength = lengths.at(-1) ?? 0;
-  const slots: { along: number; offset: number }[] = [];
-  // A board needs breathing room from any facade: at map scale a house one
-  // stud away still covers it.
-  const tooCloseToBuilding = (x: number, z: number) => existingPlots.some((plot) =>
-    Math.abs(x - plot.x) < (DIARY_BOARD_WIDTH + plot.width) / 2 + 1.5
-    && Math.abs(z - plot.z) < (DIARY_BOARD_DEPTH + plot.depth) / 2 + 1.5);
+  // Walk the east road and keep only slots that clear every article building
+  // and prop. The row itself stays on a fixed line so the pitch is even.
+  const slots: { along: number; x: number; z: number }[] = [];
   // Being on the far side of the road is not enough: this is an isometric
   // diorama, so a tall house hides everything standing behind it on screen.
   // Ground-level distance checks miss that entirely, so the test is done in
@@ -457,45 +412,35 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     }
     return false;
   };
-  // Every board sits on the same side of the road: the far side from the
-  // houses that front this street, so the row reads as one continuous line
-  // instead of weaving across the carriageway. On this road the houses occupy
-  // the southern edge, so boards always land north of the centreline.
-  for (let along = DIARY_LANE_START; along <= laneLength - DIARY_LANE_END_PAD; along += 0.4) {
-    const point = laneAt(along);
-    // The west road is bounded by the diorama edge on the far side.
-    if (point.x < -DIARY_MAX_X) break;
-    // Boards always sit on the far side of the road, and keep a real gap from
-    // any building so a facade never hides them.
-    const sign = awaySign(point.nx, point.nz);
-    for (const offset of DIARY_OFFSETS) {
-      const x = point.x + point.nx * offset * sign;
-      const z = point.z + point.nz * offset * sign;
-      if (blocked(x, z)) continue;
-      if (tooCloseToBuilding(x, z)) continue;
-      if (occludedByBuilding(x, z)) continue;
-      slots.push({ along, offset: offset * sign });
-      break;
-    }
-  }
-  // Drop slots that crowd the previous one so the row keeps an even rhythm.
+  // Every board sits on one genuinely straight line out in the orchard field,
+  // parallel to the road rather than following its curve. A constant pitch
+  // keeps the row evenly spaced, and the line stays far enough from the houses
+  // that no facade can hide a notice.
+  const lineDx = DIARY_LINE_END.x - DIARY_LINE_ORIGIN.x;
+  const lineDz = DIARY_LINE_END.z - DIARY_LINE_ORIGIN.z;
+  const lineLength = Math.hypot(lineDx, lineDz);
+  const lineUx = lineDx / lineLength;
+  const lineUz = lineDz / lineLength;
+  // Normal that points away from the camera, so the row lands behind the lane
+  // instead of between the houses that front it.
+  const normalX = lineUz;
+  const normalZ = -lineUx;
   const spaced: typeof slots = [];
-  for (const slot of slots) {
-    const point = laneAt(slot.along);
-    const x = point.x + point.nx * slot.offset;
-    const z = point.z + point.nz * slot.offset;
-    if (spaced.some((other) => {
-      const otherPoint = laneAt(other.along);
-      return Math.hypot(x - (otherPoint.x + otherPoint.nx * other.offset), z - (otherPoint.z + otherPoint.nz * other.offset)) < DIARY_LANE_STEP;
-    })) continue;
-    spaced.push(slot);
+  for (let index = 0; ; index += 1) {
+    const along = DIARY_LANE_START + index * DIARY_LANE_STEP;
+    if (along > lineLength - DIARY_LANE_END_PAD) break;
+    const x = DIARY_LINE_ORIGIN.x + lineUx * along + normalX * DIARY_ROW_OFFSET;
+    const z = DIARY_LINE_ORIGIN.z + lineUz * along + normalZ * DIARY_ROW_OFFSET;
+    if (blocked(x, z)) continue;
+    if (occludedByBuilding(x, z)) continue;
+    spaced.push({ along, x, z });
   }
-  const capacity = spaced.length;
+  const capacity = Math.min(spaced.length, DIARY_MAX_BOARDS);
+  spaced.length = capacity;
 
-  const toBoard = (entry: LayoutDiaryEntry, slot: { along: number; offset: number }, index: number): TownDiaryBoard => {
-    const point = laneAt(slot.along);
-    const x = point.x + point.nx * slot.offset;
-    const z = point.z + point.nz * slot.offset;
+  const toBoard = (entry: LayoutDiaryEntry, slot: { x: number; z: number }, index: number): TownDiaryBoard => {
+    const x = slot.x;
+    const z = slot.z;
     const jitter = (index % 3) - 1;
     return {
       id: entry.id,
@@ -526,24 +471,21 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     return board;
   });
 
-  // Archive cluster: the overflow is filed at the far end of the row, stacked
-  // perpendicular to the road so it never runs past the diorama edge. Boards
-  // lean and turn away from the street, so the cluster reads as "filed".
+  // Archive cluster: the overflow is filed at the far end of the same line,
+  // stacked outward from the road so it never runs past the diorama edge.
+  // Boards lean and turn away from the street, so the cluster reads as "filed".
   const lastActive = spaced[spaced.length - 1];
-  const anchorPoint = laneAt(lastActive.along);
   // Leave a visible gap after the last live board, then file the overflow in a
   // compact heap that steps away from the road.
-  const archiveStart = lastActive.along + 2.6;
-  const archiveAnchor = laneAt(Math.min(archiveStart, laneLength - 0.5));
-  const endPoint = anchorPoint;
+  const archiveStart = (lastActive?.along ?? DIARY_LANE_START) + 2.6;
   const archived: TownDiaryBoard[] = overflowEntries.map((entry, index) => {
     const column = index % 2;
     const row = Math.floor(index / 2);
     // Heap outward across the road; each row sits further from the street.
-    const along = -column * 0.9;
-    const across = DIARY_ARCHIVE_OFFSET + row * 0.78;
-    const x = archiveAnchor.x + archiveAnchor.tx * along + archiveAnchor.nx * across;
-    const z = archiveAnchor.z + archiveAnchor.tz * along + archiveAnchor.nz * across;
+    const along = Math.min(lineLength - 1.0, archiveStart - column * DIARY_ARCHIVE_STEP);
+    const across = DIARY_ROW_OFFSET + DIARY_ARCHIVE_OFFSET + row * 0.78;
+    const x = DIARY_LINE_ORIGIN.x + lineUx * along + normalX * across;
+    const z = DIARY_LINE_ORIGIN.z + lineUz * along + normalZ * across;
     return {
       id: entry.id,
       x: Number(x.toFixed(3)),
@@ -564,16 +506,16 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
     const currentKey = (activeEntries[index].date ?? '').slice(0, 7);
     if (!currentKey || currentKey === previousKey) continue;
     const along = (spaced[index - 1].along + spaced[index].along) / 2;
-    const point = laneAt(along);
-    // Same side as the boards, a little further back, so the divider reads as
-    // part of the row instead of drifting to the opposite verge.
-    const sign = awaySign(point.nx, point.nz);
-    const offset = 6.6;
+    // Sit on the same straight line as the boards, a little further out, so the
+    // divider reads as part of the row instead of drifting to the near verge.
+    const offset = DIARY_ROW_OFFSET + 2.0;
+    const x = DIARY_LINE_ORIGIN.x + lineUx * along + normalX * offset;
+    const z = DIARY_LINE_ORIGIN.z + lineUz * along + normalZ * offset;
     months.push({
       key: currentKey,
       month: Number(currentKey.slice(5, 7)),
-      x: Number((point.x + point.nx * offset * sign).toFixed(3)),
-      z: Number((point.z + point.nz * offset * sign).toFixed(3)),
+      x: Number(x.toFixed(3)),
+      z: Number(z.toFixed(3)),
       rotation: 0,
     });
   }
@@ -589,13 +531,15 @@ export const createTownDiaryDistrict = (entries: LayoutDiaryEntry[], existingPlo
   return {
     id: 'diary-district',
     kind: 'diary',
-    x: endPoint.x,
-    z: endPoint.z,
+    // Anchor the district at the centre of its row so "outlying place" refers
+    // to the whole strip, not just the note closest to town.
+    x: Number(((bounds.minX + bounds.maxX) / 2).toFixed(3)),
+    z: Number(((bounds.minZ + bounds.maxZ) / 2).toFixed(3)),
     boards,
     archived,
     months,
     singleBoard: DIARY_SINGLE,
-    path: roadCenterlines.west,
+    path: roadCenterlines.east,
     bounds,
   };
 };
@@ -773,7 +717,9 @@ export const townEntities: TownEntity[] = [
   { id: 'shrub-west-1', kind: 'shrub', x: -6.2, z: -8.8, width: 1.15, depth: 1.0 },
   { id: 'shrub-west-2', kind: 'shrub', x: -6.3, z: -10.8, width: 1.15, depth: 1.0 },
   { id: 'shrub-east-1', kind: 'shrub', x: 8.5, z: -8.5, width: 1.15, depth: 1.0 },
-  { id: 'shrub-east-2', kind: 'shrub', x: 9.75, z: 3.25, width: 1.15, depth: 1.0 },
+  // Nudged south so the diary lane keeps an unbroken row of notices along the
+  // east road; it still fronts the same field corner.
+  { id: 'shrub-east-2', kind: 'shrub', x: 9.75, z: 4.9, width: 1.15, depth: 1.0 },
   { id: 'shrub-north-1', kind: 'shrub', x: -7.25, z: 8.5, width: 1.15, depth: 1.0 },
   { id: 'shrub-north-2', kind: 'shrub', x: 6.5, z: 9.5, width: 1.15, depth: 1.0 },
 ];

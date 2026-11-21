@@ -253,9 +253,22 @@ for (const marker of crowded.months) {
     assert(!collides(notice, { x: marker.x, z: marker.z, width: 0.8, depth: 0.4 }), `month marker ${marker.key} collides with ${notice.id}`);
   }
 }
-// The quarter is an outlying place: it must sit well away from the town core.
-assert(Math.hypot(withDiary.diary.x, withDiary.diary.z) > 18, 'diary quarter must be an outlying district');
+// The row lives on the outer stretch of the east road, below the friend hamlet
+// on screen, instead of hugging the plaza frontage.
 assert(withDiary.diary.path.length > 1, 'diary quarter must be reachable by a lane');
+assert(withDiary.diary.path.at(-1).x > 30, 'diary lane must leave town along the east road');
+const boardDistances = withDiary.diary.boards.map((notice) => Math.hypot(notice.x, notice.z));
+const nearestBoard = Math.min(...boardDistances);
+const furthestBoard = Math.max(...boardDistances);
+assert(nearestBoard > 10, `first diary board must stand clear of the plaza, got ${nearestBoard.toFixed(2)}`);
+assert(furthestBoard > 20, `diary lane must reach out along the east road, got ${furthestBoard.toFixed(2)}`);
+// A wider pitch keeps visible grass between boards instead of a solid fence.
+const boardGaps = withDiary.diary.boards.slice(1).map((notice, index) =>
+  Math.hypot(notice.x - withDiary.diary.boards[index].x, notice.z - withDiary.diary.boards[index].z));
+if (boardGaps.length) {
+  const averageGap = boardGaps.reduce((sum, gap) => sum + gap, 0) / boardGaps.length;
+  assert(averageGap > 1.7, `diary boards are packed too tightly (average gap=${averageGap.toFixed(2)})`);
+}
   for (const hut of withFriends.hamlet.huts) {
     assert(!collides(plot, hut), `friend hut ${hut.id} collides with ${plot.postId}`);
   }
