@@ -1,6 +1,6 @@
 # Handoff — Claran's Blog（小镇版）
 
-最后更新：2026-11-19
+最后更新：2026-11-21
 
 ## 工作区
 
@@ -15,6 +15,7 @@
 ## 部署
 
 - 生产分支：`personal/claran-latest`，push 后 Vercel 自动部署（项目 `claran-town`）。
+- 2026-11-21 已合并 `upstream/main` 至 `6fe869a`：同步搜索输入法、悬停光标修复，并按上游精简验证套件。
 - 裸域 `claran-blog.work` 308 跳转到 `www`。
 - 经典版旧站：`https://classic.claran-blog.work/`（Vercel 项目 `claran-classic`，分支 `classic`）。
 - Twikoo 评论沿用旧站数据，`/about/` 留言板用 `commentPath="/about"`。
@@ -75,7 +76,7 @@
 npm run verify
 ```
 
-当前状态：全部通过（内容、空间、邻近、实例、生命、积木、季节、公告、布局、布局缓存、Markdown、RSS）。
+当前状态：全部通过（内容、四季、Markdown、RSS）。上游已移除空间、邻近、实例、生命、积木、公告、布局缓存等专项脚本，`npm run verify` 只保留核心检查。
 
 本地预览：
 
